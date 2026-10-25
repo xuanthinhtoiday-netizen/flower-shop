@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, Truck, Gift, ShieldCheck, Clock, SearchCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('store');
+  const [currentView, setCurrentView] = useState('store'); // 'store' | 'track_order' | 'admin_login' | 'admin_dashboard'
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('adminToken') || '');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
@@ -13,8 +13,15 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Tracking State
+  const [trackQuery, setTrackQuery] = useState('');
+  const [trackedOrders, setTrackedOrders] = useState([]);
+  const [isTrackLoading, setIsTrackLoading] = useState(false);
+
+  // Checkout State
   const [checkoutStep, setCheckoutStep] = useState('cart');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -23,6 +30,7 @@ export default function App() {
   const [orderSuccessId, setOrderSuccessId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Admin State
   const [adminTab, setAdminTab] = useState('orders');
   const [ordersList, setOrdersList] = useState([]);
   const [newProductName, setNewProductName] = useState('');
@@ -30,6 +38,7 @@ export default function App() {
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductImage, setNewProductImage] = useState('');
 
+  // AI Chat
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -51,14 +60,21 @@ export default function App() {
     fetchProducts();
   }, [fetchProducts]);
 
-  // useMemo lọc tìm kiếm mượt mà không lag
+  // Bộ lọc sản phẩm nâng cao
   const filteredProducts = useMemo(() => {
-    if (!searchTerm.trim()) return products;
-    return products.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, products]);
+    return products.filter(p => {
+      const matchSearch = !searchTerm.trim() || 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        p.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchCategory = selectedCategory === 'ALL' || 
+        (selectedCategory === 'LOVE' && (p.name.includes('Hồng') || p.name.includes('Tình Yêu'))) ||
+        (selectedCategory === 'BIRTHDAY' && (p.name.includes('Cầu Vồng') || p.name.includes('Hướng Dương'))) ||
+        (selectedCategory === 'CHEAP' && Number(p.price) <= 500000);
+
+      return matchSearch && matchCategory;
+    });
+  }, [searchTerm, selectedCategory, products]);
 
   const fetchAdminOrders = useCallback(() => {
     fetch(`${API_URL}/api/admin/orders`)
@@ -72,6 +88,22 @@ export default function App() {
       fetchAdminOrders();
     }
   }, [currentView, fetchAdminOrders]);
+
+  const handleTrackOrder = async (e) => {
+    e.preventDefault();
+    if (!trackQuery.trim()) return;
+
+    setIsTrackLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/orders/track?query=${encodeURIComponent(trackQuery)}`);
+      const data = await res.json();
+      setTrackedOrders(data);
+    } catch {
+      alert("Lỗi tra cứu đơn hàng!");
+    } finally {
+      setIsTrackLoading(false);
+    }
+  };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
@@ -235,12 +267,21 @@ export default function App() {
     }
   };
 
+  const renderStatusBadge = (status) => {
+    switch (status) {
+      case 'CONFIRMED': return <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>✅ Đã xác nhận</span>;
+      case 'COMPLETED': return <span style={{ backgroundColor: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>🎉 Hoàn thành</span>;
+      case 'CANCELED': return <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>❌ Đã hủy</span>;
+      default: return <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>🕒 Chờ duyệt</span>;
+    }
+  };
+
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', color: '#334155' }}>
       
       <style>{`
-        .header-container { display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 12px 20px; gap: 15px; flex-wrap: wrap; }
-        .search-box { flex: 1; min-width: 200px; max-width: 360px; }
+        .header-container { display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 12px 20px; gap: 12px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 180px; max-width: 320px; }
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
         .chat-widget { position: fixed; bottom: 90px; right: 20px; width: 360px; height: 500px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px); z-index: 1000; }
         .cart-drawer { width: 400px; max-width: 100vw; }
@@ -252,9 +293,9 @@ export default function App() {
         }
       `}</style>
 
-      {/* Top Banner */}
+      {/* Top Banner Cam Kết */}
       <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '6px 12px', fontSize: '12px', textAlign: 'center', fontWeight: '500' }}>
-        🚀 Miễn phí giao hoa từ 500k | 🎁 Tặng thiệp chúc mừng cao cấp
+        🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa trước & sau khi giao | 🎁 Tặng thiệp chúc mừng
       </div>
 
       {/* Header */}
@@ -281,6 +322,13 @@ export default function App() {
           )}
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button 
+              onClick={() => setCurrentView(currentView === 'track_order' ? 'store' : 'track_order')}
+              style={{ border: '1px solid #fbcfe8', background: currentView === 'track_order' ? '#db2777' : '#fdf2f8', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: currentView === 'track_order' ? '#fff' : '#be185d', fontSize: '13px', fontWeight: 'bold' }}
+            >
+              <SearchCode size={16} /> Tra Cứu Đơn
+            </button>
+
             {currentView === 'store' ? (
               <>
                 <button 
@@ -307,7 +355,7 @@ export default function App() {
                 onClick={handleAdminLogout}
                 style={{ border: 'none', background: '#fee2e2', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', fontWeight: '600', fontSize: '13px' }}
               >
-                <LogOut size={16} /> Đăng xuất Admin
+                <LogOut size={16} /> Thoát Admin
               </button>
             )}
           </div>
@@ -332,14 +380,22 @@ export default function App() {
                 onClick={() => setIsChatOpen(true)}
                 style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '25px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', boxShadow: '0 6px 20px rgba(219, 39, 119, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                <MessageSquare size={16} /> Tư Vấn Hoa AI
+                <MessageSquare size={16} /> Tư Vấn Hoa AI 24/7
               </button>
             </div>
           </section>
 
-          <main style={{ maxWidth: '1100px', margin: '30px auto', padding: '0 15px 50px 15px' }}>
+          {/* Thanh Bảng Bộ Lọc Danh Mục Nhanh */}
+          <div style={{ maxWidth: '1100px', margin: '20px auto 0 auto', padding: '0 15px', display: 'flex', gap: '10px', overflowX: 'auto' }}>
+            <button onClick={() => setSelectedCategory('ALL')} style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>Tất Cả Mẫu Hoa</button>
+            <button onClick={() => setSelectedCategory('LOVE')} style={{ border: 'none', background: selectedCategory === 'LOVE' ? '#db2777' : '#fff', color: selectedCategory === 'LOVE' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>❤️ Hoa Tình Yêu</button>
+            <button onClick={() => setSelectedCategory('BIRTHDAY')} style={{ border: 'none', background: selectedCategory === 'BIRTHDAY' ? '#db2777' : '#fff', color: selectedCategory === 'BIRTHDAY' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🎂 Hoa Sinh Nhật</button>
+            <button onClick={() => setSelectedCategory('CHEAP')} style={{ border: 'none', background: selectedCategory === 'CHEAP' ? '#db2777' : '#fff', color: selectedCategory === 'CHEAP' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🏷️ Tiết Kiệm (≤ 500k)</button>
+          </div>
+
+          <main style={{ maxWidth: '1100px', margin: '20px auto', padding: '0 15px 50px 15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '20px', color: '#1e293b', margin: 0, fontWeight: '700' }}>Mẫu Hoa Nổi Bật</h2>
+              <h2 style={{ fontSize: '20px', color: '#1e293b', margin: 0, fontWeight: '700' }}>Danh Sách Sản Phẩm</h2>
               <span style={{ color: '#64748b', fontSize: '13px' }}>{filteredProducts.length} sản phẩm</span>
             </div>
 
@@ -382,6 +438,47 @@ export default function App() {
             )}
           </main>
         </>
+      )}
+
+      {/* VIEW TRA CỨU ĐƠN HÀNG */}
+      {currentView === 'track_order' && (
+        <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+          <h2 style={{ color: '#0f172a', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px', marginTop: 0 }}>
+            <SearchCode color="#db2777" /> Tra Cứu Trạng Thái Đơn Hàng
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '13px' }}>Nhập Số điện thoại hoặc Mã đơn hàng của bạn để kiểm tra tiến độ giao hoa</p>
+          
+          <form onSubmit={handleTrackOrder} style={{ display: 'flex', gap: '8px', margin: '20px 0' }}>
+            <input 
+              type="text" 
+              required
+              placeholder="Nhập SĐT hoặc Mã đơn (vd: 0987... hoặc #1)..." 
+              value={trackQuery}
+              onChange={(e) => setTrackQuery(e.target.value)}
+              style={{ flexGrow: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
+            />
+            <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
+              {isTrackLoading ? 'Đang tìm...' : 'Tra Cứu'}
+            </button>
+          </form>
+
+          {trackedOrders.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {trackedOrders.map(ord => (
+                <div key={ord.id} style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '15px', backgroundColor: '#f8fafc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Mã đơn: #{ord.id}</span>
+                    {renderStatusBadge(ord.status)}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div>Khách hàng: <strong>{ord.customer_name}</strong> ({ord.customer_phone})</div>
+                    <div>Tổng tiền: <strong style={{ color: '#db2777' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</strong></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* VIEW ADMIN LOGIN */}
@@ -580,11 +677,11 @@ export default function App() {
                   <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Tên người nhận *" style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
                   <input type="tel" required value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Số điện thoại *" style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
                   <textarea required value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} placeholder="Địa chỉ giao hoa *" style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', height: '60px' }} />
-                  <textarea value={cardMessage} onChange={e => setCardMessage(e.target.value)} placeholder="Lời chúc thiệp..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', height: '60px' }} />
+                  <textarea value={cardMessage} onChange={e => setCardMessage(e.target.value)} placeholder="Lời chúc thiệp (Tùy chọn)..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', height: '60px' }} />
 
                   <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
-                      <span>Tổng:</span>
+                      <span>Tổng thanh toán:</span>
                       <span style={{ color: '#db2777' }}>{cartTotal.toLocaleString('vi-VN')} đ</span>
                     </div>
                     <button type="submit" disabled={isSubmitting} style={{ width: '100%', backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
@@ -599,7 +696,7 @@ export default function App() {
               <div style={{ textAlign: 'center', padding: '30px 10px' }}>
                 <CheckCircle2 color="#22c55e" size={60} style={{ margin: '0 auto 15px auto' }} />
                 <h3 style={{ color: '#0f172a', margin: '0 0 10px 0' }}>Đặt Hàng Thành Công!</h3>
-                <p style={{ color: '#64748b', fontSize: '13px' }}>Mã đơn hàng: <strong>#{orderSuccessId}</strong></p>
+                <p style={{ color: '#64748b', fontSize: '13px' }}>Mã đơn hàng của bạn là: <strong>#{orderSuccessId}</strong></p>
                 <button onClick={() => setIsCartOpen(false)} style={{ marginTop: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
                   Tiếp Tục Mua Sắm
                 </button>

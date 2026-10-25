@@ -12,15 +12,12 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // 1. API Lấy danh sách sản phẩm (Bật Cache-Control 60s giúp tải cực nhanh)
+    // 1. API Lấy danh sách sản phẩm (Bật Cache 60s)
     if (url.pathname === "/api/products" && request.method === "GET") {
       try {
         const { results } = await env.DB.prepare("SELECT * FROM products ORDER BY id DESC").all();
         return Response.json(results, { 
-          headers: { 
-            ...corsHeaders, 
-            "Cache-Control": "public, max-age=60, s-maxage=60" 
-          } 
+          headers: { ...corsHeaders, "Cache-Control": "public, max-age=60" } 
         });
       } catch (error) {
         return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
@@ -70,7 +67,23 @@ export default {
       }
     }
 
-    // 5. API Admin Login
+    // 5. API Tra cứu đơn hàng dành cho Khách hàng (Nhập SĐT hoặc Mã đơn)
+    if (url.pathname === "/api/orders/track" && request.method === "GET") {
+      try {
+        const q = url.searchParams.get("query");
+        if (!q) return Response.json([], { headers: corsHeaders });
+
+        const { results } = await env.DB.prepare(
+          "SELECT id, customer_name, customer_phone, total_price, status, created_at FROM orders WHERE customer_phone = ? OR id = ? ORDER BY id DESC"
+        ).bind(q, q).all();
+
+        return Response.json(results, { headers: corsHeaders });
+      } catch (error) {
+        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+      }
+    }
+
+    // 6. API Admin Login
     if (url.pathname === "/api/admin/login" && request.method === "POST") {
       try {
         const body = await request.json();
@@ -86,7 +99,7 @@ export default {
       }
     }
 
-    // 6. API Admin Orders
+    // 7. API Admin Orders
     if (url.pathname === "/api/admin/orders" && request.method === "GET") {
       try {
         const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY id DESC").all();
@@ -96,7 +109,7 @@ export default {
       }
     }
 
-    // 7. API Admin Update Order Status
+    // 8. API Admin Update Order Status
     if (url.pathname === "/api/admin/orders/status" && request.method === "PUT") {
       try {
         const body = await request.json();
@@ -108,7 +121,7 @@ export default {
       }
     }
 
-    // 8. API Chatbot AI dùng Gemini API (Giữ nguyên ổn định)
+    // 9. API Chatbot AI Gemini
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
         const body = await request.json();
