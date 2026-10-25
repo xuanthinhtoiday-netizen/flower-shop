@@ -1,0 +1,11 @@
+name = "flower-shop-backend"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "flower-db"
+database_id = "4b273599-e759-48f9-9869-c13d73876bcd"
+
+[ai]
+binding = "AI"
