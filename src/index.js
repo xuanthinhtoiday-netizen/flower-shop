@@ -121,10 +121,9 @@ export default {
       }
     }
 
-    // 9. API Chatbot AI (Tối ưu hóa, chống lỗi đọc body nhiều lần)
+    // 9. API Chatbot AI (Phiên bản Debug lỗi chi tiết)
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
-        // Chỉ đọc request.json() duy nhất một lần ở đây
         const body = await request.json();
         const userMessage = body.message || "";
 
@@ -132,58 +131,64 @@ export default {
         const { results: products } = await env.DB.prepare("SELECT name, price, description FROM products").all();
         const productListText = products.map(p => `- ${p.name}: ${Number(p.price).toLocaleString('vi-VN')} đ (${p.description})`).join("\n");
 
-        const systemPrompt = `Bạn là trợ lý tư vấn hoa tươi thân thiện, tinh tế và lịch sự của cửa hàng BloomArt. 
-Dưới đây là danh sách các mẫu hoa hiện có tại cửa hàng:
-${productListText}
-
-Nhiệm vụ của bạn:
-- Trò chuyện tự nhiên, gần gũi, ấm áp như một người bán hàng thực thụ với khách hàng.
-- Khéo léo gợi ý các mẫu hoa phù hợp nhất với nhu cầu, dịp tặng (sinh nhật, tỏ tình, chúc mừng, kỷ niệm...) hoặc tầm giá mà khách đề cập.
-- Nếu khách hỏi những câu ngoài lề, hãy trả lời khéo léo, lịch sự rồi nhẹ nhàng dẫn dắt họ quay lại việc chọn hoa.
-- Luôn giữ câu trả lời súc tích, rõ ràng, trình bày đẹp mắt và kết thúc bằng một câu hỏi gợi mở để tiếp tục trò chuyện.`;
+        const systemPrompt = `Bạn là trợ lý tư vấn hoa tươi thân thiện của shop BloomArt. Các mẫu hoa hiện có:\n${productListText}\nHãy trả lời ngắn gọn, lịch sự.`;
 
         const GEMINI_API_KEY = env.GEMINI_API_KEY;
 
-        if (GEMINI_API_KEY) {
-          try {
-            const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                contents: [
-                  { 
-                    role: "user", 
-                    parts: [{ text: `${systemPrompt}\n\nKhách hàng nhắn: "${userMessage}"` }] 
-                  }
-                ],
-                generationConfig: {
-                  temperature: 0.7,
-                  maxOutputTokens: 500,
-                }
-              })
-            });
-
-            // Chỉ đọc apiRes.json() duy nhất một lần vào biến riêng
-            const responseData = await apiRes.json();
-
-            if (responseData.candidates && responseData.candidates[0]?.content?.parts[0]?.text) {
-              const replyText = responseData.candidates[0].content.parts[0].text;
-              return Response.json({ reply: replyText }, { headers: corsHeaders });
-            }
-          } catch (e) {
-            console.error("Gemini API error:", e);
-          }
+        // Kiểm tra xem có nhận được Key không
+        if (!GEMINI_API_KEY) {
+          return Response.json({ reply: "⚠️ Lỗi: Biến GEMINI_API_KEY trên Cloudflare đang bị trống hoặc chưa được nhận diện!" }, { headers: corsHeaders });
         }
 
-        // Fallback thông minh nếu chưa cấu hình key hoặc gọi AI lỗi
-        const sampleProducts = products.slice(0, 3).map(p => `• **${p.name}** (${Number(p.price).toLocaleString('vi-VN')} đ)`).join("\n");
-        const fallbackReply = `Dạ BloomArt xin chào bạn! Cửa hàng đang có sẵn rất nhiều mẫu hoa tươi thắm:\n\n${sampleProducts}\n\nBạn muốn tìm hoa tặng dịp gì hay cần shop tư vấn mẫu theo sở thích không ạ? 🌸`;
+        const apiRes = await fetch(`curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent" \
+  -H 'Content-Type: application/json' \
+  -H 'X-goog-api-key: AQ.Ab8RN6JfryduZij77d5oQ7J1XvoL1SxmBaJ-kXbowoicFfiLVw' \
+  -X POST \
+  -d '{
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "Explain how AI works in a few words"
+          }
+        ]
+      }
+    ]
+  }'`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [
+              { 
+                role: "user", 
+                parts: [{ text: `${systemPrompt}\n\nKhách hàng nhắn: "${userMessage}"` }] 
+              }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 500,
+            }
+          })
+        });
 
-        return Response.json({ reply: fallbackReply }, { headers: corsHeaders });
+        const responseData = await apiRes.json();
+
+        // Nếu Google trả về lỗi, in thẳng lỗi ra khung chat để chúng ta nhìn thấy
+        if (responseData.error) {
+          return Response.json({ reply: `⚠️ Lỗi từ Google API: ${responseData.error.message} (Mã: ${responseData.error.code})` }, { headers: corsHeaders });
+        }
+
+        if (responseData.candidates && responseData.candidates[0]?.content?.parts[0]?.text) {
+          const replyText = responseData.candidates[0].content.parts[0].text;
+          return Response.json({ reply: replyText }, { headers: corsHeaders });
+        }
+
+        return Response.json({ reply: `⚠️ Phản hồi từ Google không đúng cấu trúc mong đợi.` }, { headers: corsHeaders });
+
       } catch (error) {
-        return Response.json({ reply: `Dạ BloomArt đã nhận được thông tin của bạn. Bạn cần tư vấn thêm mẫu hoa nào cứ nhắn shop nhé! 🌸` }, { status: 500, headers: corsHeaders });
+        return Response.json({ reply: `⚠️ Lỗi ngoại lệ Worker: ${error.message}` }, { headers: corsHeaders });
       }
     }
     return new Response("API Flower Shop OK!", { status: 200, headers: corsHeaders });
