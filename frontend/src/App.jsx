@@ -281,20 +281,26 @@ export default function App() {
   };
 
   return (
-    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', color: '#334155' }}>
+    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: '#334155' }}>
       
-      {/* CSS Layout Fix Chuẩn Toàn Màn Hình */}
+      {/* RESET CSS TRÀN MÀN HÌNH CHUẨN 100% */}
       <style>{`
+        html, body, #root {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow-x: hidden;
+        }
         * { box-sizing: border-box; }
         
-        /* CHỈNH SỬA TẠI ĐÂY: Chuyển sang tràn viền 100% toàn bộ màn hình */
         .main-container {
-          width: 100%;
-          max-width: 100%;
-          margin: 0;
-          padding: 0 24px;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 24px !important;
         }
-        
+
         .header-inner {
           display: flex;
           align-items: center;
@@ -304,18 +310,19 @@ export default function App() {
           width: 100%;
         }
 
-        /* Tự động chia cột hoa tràn viền theo kích thước màn hình */
+        .search-box {
+          flex: 1;
+          max-width: 500px;
+        }
+
+        /* Chia cột hoa theo độ rộng màn hình */
         .product-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
           gap: 20px;
           width: 100%;
         }
 
-        .search-box {
-          flex: 1;
-          max-width: 450px;
-        }
         .chat-widget {
           position: fixed;
           bottom: 90px;
@@ -331,24 +338,23 @@ export default function App() {
           max-width: 100vw;
         }
 
-        /* Responsive di động */
         @media (max-width: 768px) {
           .header-inner { flex-wrap: wrap; }
           .search-box { order: 3; width: 100%; max-width: 100%; }
+          .main-container { padding: 0 12px !important; }
         }
         @media (max-width: 480px) {
           .btn-text-hide { display: none; }
-          .main-container { padding: 0 12px; }
         }
       `}</style>
 
-      {/* Top Banner */}
-      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '6px 12px', fontSize: '12px', textAlign: 'center', fontWeight: '500' }}>
+      {/* Top Banner Tràn Viền */}
+      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%' }}>
         🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp miễn phí
       </div>
 
-      {/* Header Chuẩn Căn Cân Bằng */}
-      <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100 }}>
+      {/* Header Tràn Viền */}
+      <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
         <div className="main-container">
           <div className="header-inner">
             <div onClick={() => setCurrentView('store')} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#db2777', fontWeight: '800', fontSize: '20px', cursor: 'pointer', flexShrink: 0 }}>
@@ -416,9 +422,9 @@ export default function App() {
       {/* VIEW KHÁCH HÀNG */}
       {currentView === 'store' && (
         <>
-          {/* Hero Banner Banner Căn Vừa Vặn */}
-          <section style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '35px 16px', textAlign: 'center' }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          {/* Hero Banner Tràn Viền */}
+          <section style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '40px 16px', textAlign: 'center', width: '100%' }}>
+            <div style={{ width: '100%', margin: '0 auto' }}>
               <span style={{ backgroundColor: '#fff', color: '#db2777', padding: '4px 12px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold' }}>
                 🌸 SHOP HOA TƯƠI ONLINE 2026
               </span>
@@ -447,7 +453,7 @@ export default function App() {
             </div>
           </div>
 
-          <main className="main-container" style={{ margin: '20px auto 60px auto' }}>
+          <main className="main-container" style={{ margin: '20px 0 60px 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', color: '#1e293b', margin: 0, fontWeight: '700' }}>Danh Sách Sản Phẩm</h2>
               <span style={{ color: '#64748b', fontSize: '13px' }}>{filteredProducts.length} sản phẩm</span>
@@ -653,7 +659,7 @@ export default function App() {
 
       {/* VIEW ADMIN DASHBOARD */}
       {currentView === 'admin_dashboard' && (
-        <div className="main-container" style={{ margin: '30px auto 50px auto' }}>
+        <div className="main-container" style={{ margin: '30px 0 50px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '20px', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <LayoutDashboard color="#db2777" /> Quản Trị Cửa Hàng
@@ -903,9 +909,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 15px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Powered by Cloudflare Workers & Pages</p>
+      {/* Footer Tràn Viền */}
+      <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Full Width 100%</p>
       </footer>
     </div>
   );
