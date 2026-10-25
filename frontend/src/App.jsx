@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
@@ -283,7 +283,7 @@ export default function App() {
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: '#334155' }}>
       
-      {/* RESET CSS TRÀN MÀN HÌNH CHUẨN 100% */}
+      {/* KHU VỰC CSS ANIMATIONS CHUYÊN NGHIỆP */}
       <style>{`
         html, body, #root {
           width: 100% !important;
@@ -315,12 +315,80 @@ export default function App() {
           max-width: 500px;
         }
 
-        /* Chia cột hoa theo độ rộng màn hình */
         .product-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
           gap: 20px;
           width: 100%;
+        }
+
+        /* 1. Animation Thẻ Hoa (Card Hover Zoom & Lift Effect) */
+        .product-card {
+          background-color: #fff;
+          border-radius: 14px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+          border: 1px solid #f1f5f9;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: fadeInUp 0.6s ease-out forwards;
+        }
+        .product-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 12px 28px rgba(219, 39, 119, 0.15);
+          border-color: #fbcfe8;
+        }
+
+        .product-img-wrapper {
+          overflow: hidden;
+          position: relative;
+        }
+        .product-img {
+          width: 100%;
+          height: 210px;
+          object-fit: cover;
+          transition: transform 0.5s ease;
+        }
+        .product-card:hover .product-img {
+          transform: scale(1.08);
+        }
+
+        /* 2. Hiệu ứng Nút Bấm Nhịp Đập (Pulse Button Effect) */
+        .pulse-btn {
+          animation: pulseGlow 2s infinite;
+          transition: all 0.2s ease;
+        }
+        .pulse-btn:hover {
+          transform: scale(1.05);
+        }
+
+        @keyframes pulseGlow {
+          0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.5); }
+          70% { box-shadow: 0 0 0 12px rgba(219, 39, 119, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
+        }
+
+        /* 3. Hiệu ứng trượt xuất hiện Fade-In-Up */
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        /* 4. Hiệu ứng Nút Danh Mục Hover */
+        .category-btn {
+          transition: all 0.2s ease;
+        }
+        .category-btn:hover {
+          transform: translateY(-2px);
         }
 
         .chat-widget {
@@ -332,10 +400,17 @@ export default function App() {
           max-width: calc(100vw - 32px);
           max-height: calc(100vh - 120px);
           z-index: 1000;
+          animation: fadeInUp 0.3s ease-out;
         }
         .cart-drawer {
           width: 400px;
           max-width: 100vw;
+          animation: slideInRight 0.3s ease-out;
+        }
+
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
         }
 
         @media (max-width: 768px) {
@@ -348,12 +423,13 @@ export default function App() {
         }
       `}</style>
 
-      {/* Top Banner Tràn Viền */}
-      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%' }}>
-        🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp miễn phí
+      {/* Top Banner Thanh Chạy Tin Nhắn */}
+      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+        <Sparkles size={14} className="animate-spin" />
+        <span>🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp chúc mừng miễn phí</span>
       </div>
 
-      {/* Header Tràn Viền */}
+      {/* Header */}
       <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
         <div className="main-container">
           <div className="header-inner">
@@ -365,7 +441,7 @@ export default function App() {
             </div>
 
             {currentView === 'store' && (
-              <div className="search-box" style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f8fafc', padding: '8px 14px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+              <div className="search-box" style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f8fafc', padding: '8px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', transition: 'all 0.3s' }}>
                 <Search size={16} color="#94a3b8" />
                 <input 
                   type="text" 
@@ -380,6 +456,7 @@ export default function App() {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
               <button 
                 onClick={() => setCurrentView(currentView === 'track_order' ? 'store' : 'track_order')}
+                className="category-btn"
                 style={{ border: '1px solid #fbcfe8', background: currentView === 'track_order' ? '#db2777' : '#fdf2f8', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: currentView === 'track_order' ? '#fff' : '#be185d', fontSize: '13px', fontWeight: 'bold' }}
               >
                 <SearchCode size={16} /> <span className="btn-text-hide">Tra Cứu Đơn</span>
@@ -389,6 +466,7 @@ export default function App() {
                 <>
                   <button 
                     onClick={() => { setIsCartOpen(true); setCheckoutStep('cart'); }}
+                    className="category-btn"
                     style={{ border: 'none', background: '#fce7f3', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#db2777', fontWeight: '600', fontSize: '13px' }}
                   >
                     <ShoppingBag size={18} />
@@ -401,6 +479,7 @@ export default function App() {
                   </button>
                   <button 
                     onClick={() => setCurrentView(adminToken ? 'admin_dashboard' : 'admin_login')}
+                    className="category-btn"
                     style={{ border: '1px solid #cbd5e1', background: '#fff', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}
                   >
                     <Lock size={15} /> <span className="btn-text-hide">Admin</span>
@@ -409,6 +488,7 @@ export default function App() {
               ) : (
                 <button 
                   onClick={handleAdminLogout}
+                  className="category-btn"
                   style={{ border: 'none', background: '#fee2e2', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', fontWeight: '600', fontSize: '13px' }}
                 >
                   <LogOut size={16} /> <span className="btn-text-hide">Thoát Admin</span>
@@ -422,34 +502,35 @@ export default function App() {
       {/* VIEW KHÁCH HÀNG */}
       {currentView === 'store' && (
         <>
-          {/* Hero Banner Tràn Viền */}
-          <section style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '40px 16px', textAlign: 'center', width: '100%' }}>
+          {/* Hero Banner với Hiệu ứng Fade-In */}
+          <section className="animate-fade-in" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '45px 16px', textAlign: 'center', width: '100%' }}>
             <div style={{ width: '100%', margin: '0 auto' }}>
-              <span style={{ backgroundColor: '#fff', color: '#db2777', padding: '4px 12px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold' }}>
-                🌸 SHOP HOA TƯƠI ONLINE 2026
+              <span style={{ backgroundColor: '#fff', color: '#db2777', padding: '5px 14px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                <Sparkles size={14} color="#db2777" /> SHOP HOA TƯƠI ONLINE 2026
               </span>
-              <h1 style={{ color: '#831843', fontSize: 'clamp(22px, 4.5vw, 36px)', fontWeight: '800', margin: '12px 0 8px 0', lineHeight: '1.2' }}>
+              <h1 style={{ color: '#831843', fontSize: 'clamp(24px, 4.5vw, 38px)', fontWeight: '800', margin: '14px 0 8px 0', lineHeight: '1.2' }}>
                 Trao Gửi Cảm Xúc Qua Nhành Hoa Tươi 
               </h1>
-              <p style={{ color: '#9d174d', fontSize: 'clamp(13px, 2.5vw, 15px)', marginBottom: '18px' }}>
+              <p style={{ color: '#9d174d', fontSize: 'clamp(13px, 2.5vw, 15px)', marginBottom: '22px' }}>
                 Đặt hoa nhanh chóng - Trợ lý AI tư vấn mẫu hoa phù hợp theo từng dịp
               </p>
               <button 
                 onClick={() => setIsChatOpen(true)}
-                style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '25px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', boxShadow: '0 6px 20px rgba(219, 39, 119, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                className="pulse-btn"
+                style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px 26px', borderRadius: '25px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                <MessageSquare size={16} /> Tư Vấn Hoa AI 24/7
+                <MessageSquare size={18} /> Tư Vấn Hoa AI 24/7
               </button>
             </div>
           </section>
 
-          {/* Thanh Bộ Lọc Danh Mục */}
-          <div className="main-container" style={{ marginTop: '20px' }}>
+          {/* Thanh Bộ Lọc Danh Mục Nút Bấm Sinh Động */}
+          <div className="main-container animate-fade-in" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
-              <button onClick={() => setSelectedCategory('ALL')} style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>Tất Cả Mẫu Hoa</button>
-              <button onClick={() => setSelectedCategory('LOVE')} style={{ border: 'none', background: selectedCategory === 'LOVE' ? '#db2777' : '#fff', color: selectedCategory === 'LOVE' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>❤️ Hoa Tình Yêu</button>
-              <button onClick={() => setSelectedCategory('BIRTHDAY')} style={{ border: 'none', background: selectedCategory === 'BIRTHDAY' ? '#db2777' : '#fff', color: selectedCategory === 'BIRTHDAY' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🎂 Hoa Sinh Nhật</button>
-              <button onClick={() => setSelectedCategory('CHEAP')} style={{ border: 'none', background: selectedCategory === 'CHEAP' ? '#db2777' : '#fff', color: selectedCategory === 'CHEAP' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🏷️ Tiết Kiệm (≤ 500k)</button>
+              <button onClick={() => setSelectedCategory('ALL')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>Tất Cả Mẫu Hoa</button>
+              <button onClick={() => setSelectedCategory('LOVE')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'LOVE' ? '#db2777' : '#fff', color: selectedCategory === 'LOVE' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>❤️ Hoa Tình Yêu</button>
+              <button onClick={() => setSelectedCategory('BIRTHDAY')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'BIRTHDAY' ? '#db2777' : '#fff', color: selectedCategory === 'BIRTHDAY' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>🎂 Hoa Sinh Nhật</button>
+              <button onClick={() => setSelectedCategory('CHEAP')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'CHEAP' ? '#db2777' : '#fff', color: selectedCategory === 'CHEAP' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>🏷️ Tiết Kiệm (≤ 500k)</button>
             </div>
           </div>
 
@@ -465,40 +546,42 @@ export default function App() {
               </div>
             ) : (
               <div className="product-grid">
-                {filteredProducts.map((item) => (
-                  <div key={item.id} style={{ backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', border: '1px solid #f1f5f9' }}>
+                {filteredProducts.map((item, idx) => (
+                  <div key={item.id} className="product-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                     
-                    <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => { setSelectedProduct(item); setModalQuantity(1); }}>
+                    <div className="product-img-wrapper" style={{ cursor: 'pointer' }} onClick={() => { setSelectedProduct(item); setModalQuantity(1); }}>
                       <img 
+                        className="product-img"
                         src={item.image_url || 'https://via.placeholder.com/300'} 
                         alt={item.name} 
                         loading="lazy"
-                        style={{ width: '100%', height: '200px', objectFit: 'cover' }} 
                       />
-                      <div style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '5px', borderRadius: '50%', color: '#db2777', display: 'flex' }}>
-                        <Eye size={15} />
+                      <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px', borderRadius: '50%', color: '#db2777', display: 'flex', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
+                        <Eye size={16} />
                       </div>
                     </div>
 
-                    <div style={{ padding: '12px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div style={{ padding: '14px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div onClick={() => { setSelectedProduct(item); setModalQuantity(1); }} style={{ cursor: 'pointer' }}>
                         <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>{item.name}</h3>
-                        <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 10px 0', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
+                        <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 12px 0', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
                       </div>
                       <div>
-                        <div style={{ color: '#db2777', fontWeight: '800', fontSize: '16px', marginBottom: '10px' }}>
+                        <div style={{ color: '#db2777', fontWeight: '800', fontSize: '17px', marginBottom: '10px' }}>
                           {Number(item.price).toLocaleString('vi-VN')} đ
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button 
                             onClick={() => { setSelectedProduct(item); setModalQuantity(1); }}
-                            style={{ flex: 1, border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+                            className="category-btn"
+                            style={{ flex: 1, border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
                           >
                             Xem
                           </button>
                           <button 
                             onClick={() => addToCart(item)}
-                            style={{ flex: 1.2, backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+                            className="category-btn"
+                            style={{ flex: 1.2, backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
                           >
                             + Mua
                           </button>
@@ -514,10 +597,10 @@ export default function App() {
         </>
       )}
 
-      {/* MODAL XEM CHI TIẾT SẢN PHẨM (SHOPEE STYLE) */}
+      {/* MODAL XEM CHI TIẾT SẢN PHẨM */}
       {selectedProduct && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', maxWidth: '720px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+          <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: '16px', maxWidth: '720px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
             
             <button 
               onClick={() => setSelectedProduct(null)} 
@@ -527,7 +610,7 @@ export default function App() {
             </button>
 
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <img src={selectedProduct.image_url} alt={selectedProduct.name} style={{ flex: '1 1 260px', width: '100%', maxHeight: '320px', objectFit: 'cover', borderRadius: '10px' }} />
+              <img src={selectedProduct.image_url} alt={selectedProduct.name} style={{ flex: '1 1 260px', width: '100%', maxHeight: '320px', objectFit: 'cover', borderRadius: '12px' }} />
 
               <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
@@ -565,6 +648,7 @@ export default function App() {
                         addToCart(selectedProduct, modalQuantity);
                         setSelectedProduct(null);
                       }}
+                      className="category-btn"
                       style={{ flex: 1, backgroundColor: '#fce7f3', color: '#db2777', border: '1px solid #fbcfe8', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                     >
                       + Giỏ Hàng
@@ -576,6 +660,7 @@ export default function App() {
                         setIsCartOpen(true);
                         setCheckoutStep('form');
                       }}
+                      className="pulse-btn"
                       style={{ flex: 1, backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                     >
                       Mua Ngay
@@ -591,7 +676,7 @@ export default function App() {
 
       {/* VIEW TRA CỨU ĐƠN HÀNG */}
       {currentView === 'track_order' && (
-        <div style={{ maxWidth: '580px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+        <div className="animate-fade-in" style={{ maxWidth: '580px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0 }}>
             <SearchCode color="#db2777" /> Tra Cứu Trạng Thái Đơn Hàng
           </h2>
@@ -638,7 +723,7 @@ export default function App() {
 
       {/* VIEW ADMIN LOGIN */}
       {currentView === 'admin_login' && (
-        <div style={{ maxWidth: '380px', margin: '70px auto', padding: '25px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+        <div className="animate-fade-in" style={{ maxWidth: '380px', margin: '70px auto', padding: '25px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <Lock size={36} color="#db2777" style={{ marginBottom: '12px' }} />
           <h2 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '18px' }}>Đăng Nhập Admin</h2>
           <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -659,7 +744,7 @@ export default function App() {
 
       {/* VIEW ADMIN DASHBOARD */}
       {currentView === 'admin_dashboard' && (
-        <div className="main-container" style={{ margin: '30px 0 50px 0' }}>
+        <div className="main-container animate-fade-in" style={{ margin: '30px 0 50px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '20px', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <LayoutDashboard color="#db2777" /> Quản Trị Cửa Hàng
@@ -861,20 +946,21 @@ export default function App() {
         </div>
       )}
 
-      {/* FLOATING CHAT AI */}
+      {/* FLOATING CHAT AI Nút Phát Sáng */}
       {currentView === 'store' && (
         <button 
           onClick={() => setIsChatOpen(!isChatOpen)}
-          style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '52px', height: '52px', cursor: 'pointer', boxShadow: '0 6px 20px rgba(219, 39, 119, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}
+          className="pulse-btn"
+          style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}
         >
-          {isChatOpen ? <X size={22} /> : <MessageSquare size={22} />}
+          {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
         </button>
       )}
 
       {isChatOpen && currentView === 'store' && (
         <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
           <div style={{ backgroundColor: '#db2777', color: '#fff', padding: '12px 16px', fontWeight: 'bold', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>🤖 Trợ Lý Tư Vấn Hoa AI</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Trợ Lý Tư Vấn Hoa AI</span>
             <button onClick={() => setIsChatOpen(false)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
           </div>
           
@@ -909,9 +995,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer Tràn Viền */}
+      {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Full Width 100%</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Smooth Interactive UI & Animations</p>
       </footer>
     </div>
   );
