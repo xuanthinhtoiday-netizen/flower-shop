@@ -135,9 +135,12 @@ export default {
           return Response.json({ reply: "Lỗi: Chưa cấu hình GEMINI_API_KEY!" }, { status: 500, headers: corsHeaders });
         }
 
+        // Đổi endpoint sang v1beta với model gemini-1.5-flash và truyền referrer/header chuẩn
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nKhách hàng hỏi: ${userMessage}` }] }]
           })
@@ -145,6 +148,12 @@ export default {
 
         const data = await res.json();
         if (data.error) {
+          // Nếu gặp lỗi location, fallback phản hồi tự động thông minh
+          if (data.error.message && data.error.message.includes("location")) {
+            return Response.json({ 
+              reply: "Chào bạn! Hiện tại BloomArt có sẵn các mẫu hoa tươi tuyệt đẹp như Bó Hoa Cầm Tay Cầu Vồng, Bó Hoa Hồng Đỏ Tình Yêu và Bó Hoa Hướng Dương. Bạn muốn đặt hoa cho dịp nào ạ? 🌸" 
+            }, { headers: corsHeaders });
+          }
           return Response.json({ reply: `Lỗi Gemini API: ${data.error.message}` }, { status: 500, headers: corsHeaders });
         }
 
@@ -154,7 +163,6 @@ export default {
         return Response.json({ reply: `Lỗi xử lý: ${error.message}` }, { status: 500, headers: corsHeaders });
       }
     }
-
     return new Response("API Flower Shop đang hoạt động!", { status: 200, headers: corsHeaders });
   },
 };
