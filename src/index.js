@@ -26,19 +26,26 @@ export default {
     if (url.pathname === "/api/orders" && request.method === "POST") {
       try {
         const body = await request.json();
-        const { customer_name, customer_phone, delivery_address, card_message, total_price, items } = body;
+        const { customer_name, customer_phone, delivery_address, card_message, total_price } = body;
 
-        // Lưu thông tin đơn hàng vào bảng orders
+        // Lưu thông tin đơn hàng (truyền vào cả address lẫn delivery_address để khớp schema D1)
         const info = await env.DB.prepare(
-          "INSERT INTO orders (customer_name, customer_phone, delivery_address, card_message, total_price, status) VALUES (?, ?, ?, ?, ?, ?)"
-        ).bind(customer_name, customer_phone, delivery_address, card_message || '', total_price, 'PENDING').run();
+          "INSERT INTO orders (customer_name, customer_phone, address, delivery_address, card_message, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ).bind(
+          customer_name, 
+          customer_phone, 
+          delivery_address, // Gán địa chỉ vào cột address
+          delivery_address, // Gán địa chỉ vào cột delivery_address
+          card_message || '', 
+          total_price, 
+          'PENDING'
+        ).run();
 
         return Response.json({ message: "Đặt hàng thành công!", orderId: info.meta.last_row_id }, { status: 201, headers: corsHeaders });
       } catch (error) {
         return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
       }
     }
-
     // 3. API Chatbot AI dùng Gemini API
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
