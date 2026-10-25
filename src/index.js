@@ -2,6 +2,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // Xử lý CORS
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -12,173 +13,144 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // 1. API Lấy danh sách sản phẩm (Bật Cache 60s)
-    if (url.pathname === "/api/products" && request.method === "GET") {
-      try {
+    try {
+      // 1. API Lấy danh sách sản phẩm
+      if (url.pathname === "/api/products" && request.method === "GET") {
         const { results } = await env.DB.prepare("SELECT * FROM products ORDER BY id DESC").all();
-        return Response.json(results, { 
-          headers: { ...corsHeaders, "Cache-Control": "public, max-age=60" } 
+        return new Response(JSON.stringify(results), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
       }
-    }
 
-    // 2. API Thêm sản phẩm (Admin)
-    if (url.pathname === "/api/products" && request.method === "POST") {
-      try {
+      // 2. API Thêm sản phẩm mới (Admin)
+      if (url.pathname === "/api/products" && request.method === "POST") {
         const body = await request.json();
-        const { category_id, name, description, price, image_url } = body;
-
+        const { name, price, description, image_url } = body;
+        
         await env.DB.prepare(
-          "INSERT INTO products (category_id, name, description, price, image_url) VALUES (?, ?, ?, ?, ?)"
-        ).bind(category_id || 1, name, description, price, image_url).run();
+          "INSERT INTO products (name, price, description, image_url) VALUES (?, ?, ?, ?)"
+        ).bind(name, price, description || '', image_url || '').run();
 
-        return Response.json({ message: "Thêm hoa thành công!" }, { status: 201, headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // 3. API Xóa sản phẩm (Admin)
-    if (url.pathname.startsWith("/api/products/") && request.method === "DELETE") {
-      try {
-        const id = url.pathname.split("/").pop();
+      // 3. API Xóa sản phẩm (Admin)
+      if (url.pathname.startsWith("/api/products/") && request.method === "DELETE") {
+        const id = url.pathname.split("/")[3];
         await env.DB.prepare("DELETE FROM products WHERE id = ?").bind(id).run();
-        return Response.json({ message: "Xóa thành công!" }, { headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // 4. API Tạo đơn hàng
-    if (url.pathname === "/api/orders" && request.method === "POST") {
-      try {
+      // 4. API Tạo đơn hàng mới
+      if (url.pathname === "/api/orders" && request.method === "POST") {
         const body = await request.json();
         const { customer_name, customer_phone, delivery_address, card_message, total_price } = body;
 
-        const info = await env.DB.prepare(
-          "INSERT INTO orders (customer_name, customer_phone, address, delivery_address, card_message, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        ).bind(customer_name, customer_phone, delivery_address, delivery_address, card_message || '', total_price, 'PENDING').run();
+        const res = await env.DB.prepare(
+          "INSERT INTO orders (customer_name, customer_phone, delivery_address, card_message, total_price, status) VALUES (?, ?, ?, ?, ?, 'PENDING')"
+        ).bind(customer_name, customer_phone, delivery_address, card_message || '', total_price).run();
 
-        return Response.json({ message: "Đặt hàng thành công!", orderId: info.meta.last_row_id }, { status: 201, headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, orderId: res.meta.last_row_id }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // 5. API Tra cứu đơn hàng dành cho Khách hàng (Nhập SĐT hoặc Mã đơn)
-    if (url.pathname === "/api/orders/track" && request.method === "GET") {
-      try {
-        const q = url.searchParams.get("query");
-        if (!q) return Response.json([], { headers: corsHeaders });
-
+      // 5. API Tra cứu đơn hàng
+      if (url.pathname === "/api/orders/track" && request.method === "GET") {
+        const query = url.searchParams.get("query") || "";
         const { results } = await env.DB.prepare(
-          "SELECT id, customer_name, customer_phone, total_price, status, created_at FROM orders WHERE customer_phone = ? OR id = ? ORDER BY id DESC"
-        ).bind(q, q).all();
+          "SELECT * FROM orders WHERE customer_phone LIKE ? OR id = ? ORDER BY id DESC"
+        ).bind(`%${query}%`, query).all();
 
-        return Response.json(results, { headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify(results), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // 6. API Admin Login
-    if (url.pathname === "/api/admin/login" && request.method === "POST") {
-      try {
+      // 6. API Admin Đăng nhập
+      if (url.pathname === "/api/admin/login" && request.method === "POST") {
         const body = await request.json();
-        const { password } = body;
-        const secretPassword = env.ADMIN_PASSWORD || "admin123456";
-
-        if (password === secretPassword) {
-          return Response.json({ success: true, token: "admin-token" }, { headers: corsHeaders });
+        if (body.password === "admin123") {
+          return new Response(JSON.stringify({ success: true, token: "admin-authenticated-token" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
         }
-        return Response.json({ success: false, message: "Mật khẩu Admin sai!" }, { status: 401, headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: false, message: "Sai mật khẩu!" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // 7. API Admin Orders
-    if (url.pathname === "/api/admin/orders" && request.method === "GET") {
-      try {
+      // 7. API Admin Lấy danh sách đơn hàng
+      if (url.pathname === "/api/admin/orders" && request.method === "GET") {
         const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY id DESC").all();
-        return Response.json(results, { headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify(results), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // 8. API Admin Update Order Status
-    if (url.pathname === "/api/admin/orders/status" && request.method === "PUT") {
-      try {
+      // 8. API Admin Cập nhật trạng thái đơn hàng
+      if (url.pathname === "/api/admin/orders/status" && request.method === "PUT") {
         const body = await request.json();
         const { order_id, status } = body;
         await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ?").bind(status, order_id).run();
-        return Response.json({ message: "Cập nhật thành công!" }, { headers: corsHeaders });
-      } catch (error) {
-        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    }
 
-    // API AI Chatbot gọi Gemini API thật
-if (url.pathname === "/api/chat" && request.method === "POST") {
-  const body = await request.json();
-  const userMsg = body.message || "";
+      // 9. API AI Chatbot Gọi Gemini API Chuẩn
+      if (url.pathname === "/api/chat" && request.method === "POST") {
+        const body = await request.json();
+        const userMsg = body.message || "";
 
-  // 1. Lấy danh sách sản phẩm hiện có trong DB
-  const { results: allProducts } = await env.DB.prepare("SELECT id, name, price, description FROM products").all();
+        const { results: allProducts } = await env.DB.prepare("SELECT name, price, description FROM products").all();
 
-  // 2. Tạo prompt cho Gemini phân tích ngữ cảnh & chọn sản phẩm
-  const prompt = `
-Bạn là Trợ lý tư vấn bán hoa chuyên nghiệp của BloomArt.
-Danh sách sản phẩm hiện có tại shop: ${JSON.stringify(allProducts)}
+        const prompt = `
+Bạn là Trợ lý tư vấn bán hoa chuyên nghiệp của shop BloomArt.
+Danh sách các mẫu hoa hiện có tại cửa hàng: ${JSON.stringify(allProducts)}
 
 Câu hỏi của khách hàng: "${userMsg}"
 
-Hãy trả về phản hồi dưới dạng JSON duy nhất theo định dạng:
-{
-  "reply": "Trích câu tư vấn ngắn gọn, lịch sự, thân thiện (dưới 3 câu) dành cho khách hàng",
-  "recommended_ids": [danh_sách_id_sản_phẩm_phù_hợp_nhất_từ_1_đến_2_mẫu]
-}
+Hãy trả lời thật lịch sự, tự nhiên, thân thiện và đưa ra lời tư vấn phù hợp nhất cho khách hàng.
 `;
 
-  try {
-    // Gọi API Gemini (sử dụng gemini-1.5-flash)
-    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY"}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
-    });
+        try {
+          const apiKey = env.GEMINI_API_KEY || "";
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          });
 
-    const geminiData = await geminiRes.json();
-    const rawText = geminiData.candidates[0].content.parts[0].text;
-    const parsed = JSON.parse(rawText);
+          const geminiData = await geminiRes.json();
+          const replyText = geminiData.candidates[0].content.parts[0].text;
 
-    // Lọc ra các sản phẩm theo ID mà Gemini đề xuất
-    const suggestedProducts = allProducts.filter(p => parsed.recommended_ids?.includes(p.id));
+          return new Response(JSON.stringify({ reply: replyText }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
 
-    return new Response(JSON.stringify({ 
-      reply: parsed.reply,
-      suggestedProducts: suggestedProducts.length > 0 ? suggestedProducts : allProducts.slice(0, 2)
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+        } catch (err) {
+          return new Response(JSON.stringify({ 
+            reply: `Cảm ơn bạn đã nhắn tin! Về yêu cầu "${userMsg}", bạn có thể tham khảo các mẫu hoa tươi tuyệt đẹp trên cửa hàng BloomArt nhé 🌸` 
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      }
 
-  } catch (err) {
-    // Fallback nếu API Gemini gặp sự cố
-    return new Response(JSON.stringify({ 
-      reply: `Cảm ơn bạn đã nhắn tin! Về yêu cầu "${userMsg}", BloomArt xin gợi ý một số mẫu hoa tươi phù hợp nhất dưới đây ạ: 🌸`,
-      suggestedProducts: allProducts.slice(0, 2)
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+      return new Response("API BloomArt Running!", { headers: corsHeaders });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
   }
-}
-
-    return new Response("API Flower Shop OK!", { status: 200, headers: corsHeaders });
-  },
 };

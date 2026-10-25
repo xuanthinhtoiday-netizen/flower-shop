@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check, HeartHandshake } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
-// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP
+// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP CỦA BẠN
 const BANK_ID = "BIDV"; 
 const ACCOUNT_NO = "8884416572"; 
 const ACCOUNT_NAME = "CAO XUÂN THỊNH";
@@ -49,14 +49,11 @@ export default function App() {
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductImage, setNewProductImage] = useState('');
 
-  // AI Chat Advanced State
+  // AI Chat
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { 
-      sender: 'bot', 
-      text: 'Xin chào! Mình là **Trợ lý AI BloomArt** 🌸. Bạn cần chọn hoa cho dịp nào (Tình yêu, Sinh nhật, Khai trương) hay cần gợi ý lời chúc thiệp ạ?' 
-    }
+    { sender: 'bot', text: 'Xin chào! Bạn cần tư vấn chọn hoa cho dịp nào ạ? 🌸' }
   ]);
   const [isTyping, setIsTyping] = useState(false);
 
@@ -268,28 +265,13 @@ export default function App() {
     }
   };
 
-  // AI XỬ LÝ NÂNG CẤP TƯ VẤN + GỢI Ý HOA + TẠO LỜI CHÚC THIỆP
-  const handleSendMessage = async (customMsg = null) => {
-    const userMsg = customMsg || chatInput;
-    if (!userMsg.trim()) return;
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
 
+    const userMsg = chatInput;
     setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
-    if (!customMsg) setChatInput('');
+    setChatInput('');
     setIsTyping(true);
-
-    // Thuật toán thông minh lọc hoa khớp câu hỏi ở Frontend
-    const query = userMsg.toLowerCase();
-    let suggestedFlowers = [];
-
-    if (query.includes('tình yêu') || query.includes('người yêu') || query.includes('vợ') || query.includes('hồng')) {
-      suggestedFlowers = products.filter(p => p.name.includes('Hồng') || p.description.includes('tình yêu'));
-    } else if (query.includes('sinh nhật') || query.includes('bạn') || query.includes('vui')) {
-      suggestedFlowers = products.filter(p => p.name.includes('Hướng Dương') || p.name.includes('Cầu Vồng') || p.price <= 500000);
-    } else if (query.includes('rẻ') || query.includes('500') || query.includes('tiết kiệm')) {
-      suggestedFlowers = products.filter(p => Number(p.price) <= 500000);
-    } else {
-      suggestedFlowers = products.slice(0, 2); // Trả về 2 mẫu ngẫu nhiên
-    }
 
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
@@ -298,24 +280,9 @@ export default function App() {
         body: JSON.stringify({ message: userMsg })
       });
       const data = await res.json();
-
-      setChatMessages(prev => [
-        ...prev, 
-        { 
-          sender: 'bot', 
-          text: data.reply || 'Dưới đây là một số mẫu hoa đẹp nhất phù hợp với yêu cầu của bạn:',
-          suggestedProducts: suggestedFlowers.slice(0, 2)
-        }
-      ]);
+      setChatMessages(prev => [...prev, { sender: 'bot', text: data.reply || 'Cửa hàng đã nhận thông tin!' }]);
     } catch {
-      setChatMessages(prev => [
-        ...prev, 
-        { 
-          sender: 'bot', 
-          text: 'BloomArt gợi ý bạn tham khảo ngay 2 mẫu hoa bán chạy này ạ:',
-          suggestedProducts: products.slice(0, 2)
-        }
-      ]);
+      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI Gemini!' }]);
     } finally {
       setIsTyping(false);
     }
@@ -454,8 +421,8 @@ export default function App() {
           position: fixed;
           bottom: 90px;
           right: 20px;
-          width: 380px;
-          height: 520px;
+          width: 360px;
+          height: 500px;
           max-width: calc(100vw - 32px);
           max-height: calc(100vh - 120px);
           z-index: 1000;
@@ -1100,7 +1067,7 @@ export default function App() {
         </div>
       )}
 
-      {/* FLOATING CHAT AI NÂNG CẤP HIỂN THỊ THẺ HOA TRỰC TIẾP */}
+      {/* FLOATING CHAT AI GEMINI NGUYÊN BẢN */}
       {currentView === 'store' && (
         <button onClick={() => setIsChatOpen(!isChatOpen)} className="pulse-btn" style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
@@ -1108,62 +1075,30 @@ export default function App() {
       )}
 
       {isChatOpen && currentView === 'store' && (
-        <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '18px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+        <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
           <div style={{ backgroundColor: '#db2777', color: '#fff', padding: '12px 16px', fontWeight: 'bold', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Trợ Lý Tư Vấn Hoa AI</span>
             <button onClick={() => setIsChatOpen(false)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
           </div>
           
-          <div style={{ flexGrow: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
-            
-            {/* Quick Suggestion Pills */}
-            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-              <button onClick={() => handleSendMessage("Hoa tặng sinh nhật bạn gái")} style={{ border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>🎂 Hoa sinh nhật</button>
-              <button onClick={() => handleSendMessage("Hoa tình yêu tặng người yêu")} style={{ border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>❤️ Hoa tình yêu</button>
-              <button onClick={() => handleSendMessage("Hoa đẹp giá rẻ dưới 500k")} style={{ border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>🏷️ Giá dưới 500k</button>
-            </div>
-
+          <div style={{ flexGrow: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
             {chatMessages.map((msg, idx) => (
-              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }}>
-                <div style={{ backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', color: msg.sender === 'user' ? '#fff' : '#1e293b', padding: '8px 12px', borderRadius: '12px', fontSize: '12px', lineHeight: '1.4', border: msg.sender === 'bot' ? '1px solid #f1f5f9' : 'none' }}>
-                  {msg.sender === 'bot' ? (
-                    <ReactMarkdown components={{ p: ({ node, ...props }) => <p style={{ margin: 0 }} {...props} /> }}>
-                      {msg.text}
-                    </ReactMarkdown>
-                  ) : (
-                    msg.text
-                  )}
-                </div>
-
-                {/* HIỂN THỊ THẺ HOA TRỰC TIẾP TRONG Ô CHAT */}
-                {msg.suggestedProducts && msg.suggestedProducts.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                    {msg.suggestedProducts.map(p => (
-                      <div key={p.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#fff', border: '1px solid #fbcfe8', borderRadius: '10px', padding: '8px', boxShadow: '0 2px 8px rgba(219,39,119,0.05)' }}>
-                        <img src={p.image_url} alt={p.name} style={{ width: '45px', height: '45px', borderRadius: '6px', objectFit: 'cover' }} />
-                        <div style={{ flexGrow: 1 }}>
-                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f172a' }}>{p.name}</div>
-                          <div style={{ fontSize: '11px', color: '#db2777', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</div>
-                        </div>
-                        <button 
-                          onClick={() => addToCart(p)}
-                          style={{ border: 'none', background: '#db2777', color: '#fff', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                        >
-                          + Mua
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', color: msg.sender === 'user' ? '#fff' : '#1e293b', padding: '8px 12px', borderRadius: '12px', maxWidth: '85%', fontSize: '12px', lineHeight: '1.4' }}>
+                {msg.sender === 'bot' ? (
+                  <ReactMarkdown components={{ p: ({ node, ...props }) => <p style={{ margin: 0 }} {...props} /> }}>
+                    {msg.text}
+                  </ReactMarkdown>
+                ) : (
+                  msg.text
                 )}
-
               </div>
             ))}
-            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '11px' }}>AI đang tìm mẫu hoa phù hợp...</div>}
+            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '11px' }}>AI đang suy nghĩ...</div>}
           </div>
 
           <div style={{ padding: '8px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '6px' }}>
-            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Hỏi AI chọn hoa hoặc viết lời chúc..." style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }} />
-            <button onClick={() => handleSendMessage()} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
+            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Nhập câu hỏi..." style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }} />
+            <button onClick={handleSendMessage} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
               <Send size={14} />
             </button>
           </div>
@@ -1172,7 +1107,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Interactive AI Flower Consultant</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Clean Gemini AI Chatbot</p>
       </footer>
     </div>
   );
