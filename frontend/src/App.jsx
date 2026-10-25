@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
-// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP CỦA BẠN
-const BANK_ID = "BIDV"; 
-const ACCOUNT_NO = "8884416572"; 
-const ACCOUNT_NAME = "CAO XUÂN THỊNH";
+// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP BẠN TẠI ĐÂY
+const BANK_ID = "MB"; // Ví dụ: MB, VCB, TCB, ACB, BIDV, ICB (VietinBank)
+const ACCOUNT_NO = "0989767545"; // Thay bằng Số tài khoản ngân hàng thực tế của bạn
+const ACCOUNT_NAME = "BLOOMART SHOP";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('store');
@@ -100,6 +100,7 @@ export default function App() {
     }
   }, [currentView, fetchAdminOrders]);
 
+  // Tính toán thống kê Admin
   const adminStats = useMemo(() => {
     const totalRevenue = ordersList
       .filter(o => o.status === 'COMPLETED' || o.status === 'CONFIRMED' || !o.status || o.status === 'PENDING')
@@ -282,7 +283,7 @@ export default function App() {
       const data = await res.json();
       setChatMessages(prev => [...prev, { sender: 'bot', text: data.reply || 'Cửa hàng đã nhận thông tin!' }]);
     } catch {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI Gemini!' }]);
+      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI!' }]);
     } finally {
       setIsTyping(false);
     }
@@ -855,7 +856,7 @@ export default function App() {
         </div>
       )}
 
-      {/* VIEW TRA CỨU ĐƠN HÀNG */}
+      {/* VIEW TRA CỨU ĐƠN HÀNG + HIỂN THỊ VIETQR */}
       {currentView === 'track_order' && (
         <div className="animate-fade-in" style={{ maxWidth: '580px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0 }}>
@@ -891,6 +892,7 @@ export default function App() {
                     <div>Tổng tiền: <strong style={{ color: '#db2777', fontSize: '14px' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</strong></div>
                   </div>
 
+                  {/* Hiển thị QR thanh toán cho đơn chưa xử lý */}
                   {(!ord.status || ord.status === 'PENDING') && (
                     <div style={{ backgroundColor: '#fff', border: '1px solid #fbcfe8', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                       <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 'bold', color: '#db2777', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -940,7 +942,7 @@ export default function App() {
         </div>
       )}
 
-      {/* DRAWER GIỎ HÀNG */}
+      {/* DRAWER GIỎ HÀNG + TÍCH HỢP VIETQR KHI ĐẶT HÀNG THÀNH CÔNG */}
       {isCartOpen && currentView === 'store' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'flex-end' }}>
           <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflowY: 'auto' }}>
@@ -1021,12 +1023,14 @@ export default function App() {
               </div>
             )}
 
+            {/* MÀN HÌNH ĐẶT HÀNG THÀNH CÔNG VỚI MÃ VIETQR TỰ ĐỘNG */}
             {checkoutStep === 'success' && (
               <div style={{ textAlign: 'center', padding: '10px 5px' }}>
                 <CheckCircle2 color="#22c55e" size={48} style={{ margin: '0 auto 8px auto' }} />
                 <h3 style={{ color: '#0f172a', margin: '0 0 4px 0', fontSize: '16px' }}>Đặt Hàng Thành Công!</h3>
                 <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 14px 0' }}>Mã đơn hàng của bạn: <strong style={{ color: '#be185d' }}>#{orderSuccessId}</strong></p>
 
+                {/* KHUNG THANH TOÁN VIETQR */}
                 <div style={{ backgroundColor: '#fdf2f8', border: '1px solid #fbcfe8', borderRadius: '14px', padding: '14px', marginBottom: '16px' }}>
                   <span style={{ backgroundColor: '#db2777', color: '#fff', padding: '3px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <QrCode size={13} /> THANH TOÁN QUA VIETQR
@@ -1067,7 +1071,7 @@ export default function App() {
         </div>
       )}
 
-      {/* FLOATING CHAT AI GEMINI NGUYÊN BẢN */}
+      {/* FLOATING CHAT AI */}
       {currentView === 'store' && (
         <button onClick={() => setIsChatOpen(!isChatOpen)} className="pulse-btn" style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
@@ -1107,7 +1111,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Clean Gemini AI Chatbot</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Integrated VietQR Dynamic Payment</p>
       </footer>
     </div>
   );
