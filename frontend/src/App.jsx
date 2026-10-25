@@ -1,25 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Truck, Heart, ShieldCheck, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
 export default function App() {
-  // View State: 'store' | 'admin_login' | 'admin_dashboard'
   const [currentView, setCurrentView] = useState('store');
-  const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || '');
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem('adminToken') || '');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
-  // Store States
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Form Đặt hàng State
-  const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart' | 'form' | 'success'
+  const [checkoutStep, setCheckoutStep] = useState('cart');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -27,15 +23,13 @@ export default function App() {
   const [orderSuccessId, setOrderSuccessId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Admin Dashboard States
-  const [adminTab, setAdminTab] = useState('orders'); // 'orders' | 'products'
+  const [adminTab, setAdminTab] = useState('orders');
   const [ordersList, setOrdersList] = useState([]);
   const [newProductName, setNewProductName] = useState('');
   const [newProductPrice, setNewProductPrice] = useState('');
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductImage, setNewProductImage] = useState('');
 
-  // Chatbot AI States
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -43,48 +37,42 @@ export default function App() {
   ]);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Load Products
-  const fetchProducts = () => {
+  const fetchProducts = useCallback(() => {
     fetch(`${API_URL}/api/products`)
       .then((res) => res.json())
       .then((data) => {
         setProducts(data);
-        setFilteredProducts(data);
         setLoading(false);
       })
-      .catch((err) => {
-        console.error("Lỗi lấy dữ liệu:", err);
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    fetchProducts();
+      .catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    let result = products;
-    if (searchTerm) {
-      result = result.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    }
-    setFilteredProducts(result);
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // useMemo lọc tìm kiếm mượt mà không lag
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return products;
+    return products.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      p.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [searchTerm, products]);
 
-  // Load Admin Orders
-  const fetchAdminOrders = () => {
+  const fetchAdminOrders = useCallback(() => {
     fetch(`${API_URL}/api/admin/orders`)
       .then(res => res.json())
       .then(data => setOrdersList(data))
-      .catch(err => console.error("Lỗi lấy danh sách đơn hàng:", err));
-  };
+      .catch(err => console.error(err));
+  }, []);
 
   useEffect(() => {
     if (currentView === 'admin_dashboard') {
       fetchAdminOrders();
     }
-  }, [currentView]);
+  }, [currentView, fetchAdminOrders]);
 
-  // Handle Admin Login
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     try {
@@ -102,8 +90,8 @@ export default function App() {
       } else {
         alert(data.message || "Sai mật khẩu Admin!");
       }
-    } catch (err) {
-      alert("Lỗi kết nối khi đăng nhập Admin!");
+    } catch {
+      alert("Lỗi kết nối!");
     }
   };
 
@@ -113,7 +101,6 @@ export default function App() {
     setCurrentView('store');
   };
 
-  // Admin Actions
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
       const res = await fetch(`${API_URL}/api/admin/orders/status`, {
@@ -121,20 +108,15 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId, status: newStatus })
       });
-      if (res.ok) {
-        fetchAdminOrders();
-      }
-    } catch (err) {
-      alert("Lỗi cập nhật đơn hàng!");
+      if (res.ok) fetchAdminOrders();
+    } catch {
+      alert("Lỗi cập nhật!");
     }
   };
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!newProductName || !newProductPrice) {
-      alert("Vui lòng nhập Tên và Giá hoa!");
-      return;
-    }
+    if (!newProductName || !newProductPrice) return;
 
     try {
       const res = await fetch(`${API_URL}/api/products`, {
@@ -149,32 +131,29 @@ export default function App() {
       });
 
       if (res.ok) {
-        alert("Thêm hoa mới thành công!");
+        alert("Thêm hoa thành công!");
         setNewProductName('');
         setNewProductPrice('');
         setNewProductDesc('');
         setNewProductImage('');
         fetchProducts();
       }
-    } catch (err) {
+    } catch {
       alert("Lỗi thêm sản phẩm!");
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa hoa này không?")) return;
+    if (!window.confirm("Xóa hoa này khỏi cửa hàng?")) return;
     try {
       const res = await fetch(`${API_URL}/api/products/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchProducts();
-      }
-    } catch (err) {
+      if (res.ok) fetchProducts();
+    } catch {
       alert("Lỗi xóa sản phẩm!");
     }
   };
 
-  // Cart Functions
-  const addToCart = (product) => {
+  const addToCart = useCallback((product) => {
     setCart(prevCart => {
       const existing = prevCart.find(item => item.id === product.id);
       if (existing) {
@@ -182,9 +161,9 @@ export default function App() {
       }
       return [...prevCart, { ...product, quantity: 1 }];
     });
-  };
+  }, []);
 
-  const updateQuantity = (id, delta) => {
+  const updateQuantity = useCallback((id, delta) => {
     setCart(prevCart => prevCart.map(item => {
       if (item.id === id) {
         const newQty = item.quantity + delta;
@@ -192,20 +171,19 @@ export default function App() {
       }
       return item;
     }));
-  };
+  }, []);
 
-  const removeFromCart = (id) => {
-    setCart(cart.filter(item => item.id !== id));
-  };
+  const removeFromCart = useCallback((id) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== id));
+  }, []);
 
-  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
+  const cartTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
+  }, [cart]);
 
   const handleCheckout = async (e) => {
     e.preventDefault();
-    if (!customerName || !customerPhone || !deliveryAddress) {
-      alert("Vui lòng điền đầy đủ Tên, SĐT và Địa chỉ giao hoa!");
-      return;
-    }
+    if (!customerName || !customerPhone || !deliveryAddress) return;
 
     setIsSubmitting(true);
     try {
@@ -226,17 +204,14 @@ export default function App() {
         setOrderSuccessId(data.orderId);
         setCheckoutStep('success');
         setCart([]);
-      } else {
-        alert(`Đặt hàng thất bại: ${data.error}`);
       }
-    } catch (error) {
-      alert("Có lỗi kết nối khi đặt hàng!");
+    } catch {
+      alert("Có lỗi đặt hàng!");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Chat AI
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
@@ -253,8 +228,8 @@ export default function App() {
       });
       const data = await res.json();
       setChatMessages(prev => [...prev, { sender: 'bot', text: data.reply || 'Cửa hàng đã nhận thông tin!' }]);
-    } catch (error) {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI, bạn thử lại sau nhé.' }]);
+    } catch {
+      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI!' }]);
     } finally {
       setIsTyping(false);
     }
@@ -269,6 +244,7 @@ export default function App() {
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
         .chat-widget { position: fixed; bottom: 90px; right: 20px; width: 360px; height: 500px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px); z-index: 1000; }
         .cart-drawer { width: 400px; max-width: 100vw; }
+        img { content-visibility: auto; }
         @media (max-width: 640px) {
           .header-container { padding: 10px 15px; }
           .search-box { order: 3; width: 100%; max-width: 100%; min-width: 100%; }
@@ -338,7 +314,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* VIEW 1: TRANG KHÁCH HÀNG (STORE) */}
+      {/* VIEW KHÁCH HÀNG */}
       {currentView === 'store' && (
         <>
           <section style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '40px 15px', textAlign: 'center' }}>
@@ -369,14 +345,19 @@ export default function App() {
 
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#db2777' }}>
-                <p>Đang tải danh sách hoa tươi...</p>
+                <p>Đang tải hoa tươi...</p>
               </div>
             ) : (
               <div className="product-grid">
                 {filteredProducts.map((item) => (
                   <div key={item.id} style={{ backgroundColor: '#fff', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', border: '1px solid #f1f5f9' }}>
                     <div style={{ position: 'relative' }}>
-                      <img src={item.image_url || 'https://via.placeholder.com/300'} alt={item.name} style={{ width: '100%', height: '220px', objectFit: 'cover' }} />
+                      <img 
+                        src={item.image_url || 'https://via.placeholder.com/300'} 
+                        alt={item.name} 
+                        loading="lazy"
+                        style={{ width: '100%', height: '220px', objectFit: 'cover' }} 
+                      />
                     </div>
                     <div style={{ padding: '15px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
@@ -403,12 +384,11 @@ export default function App() {
         </>
       )}
 
-      {/* VIEW 2: DẠNG ĐĂNG NHẬP ADMIN */}
+      {/* VIEW ADMIN LOGIN */}
       {currentView === 'admin_login' && (
         <div style={{ maxWidth: '400px', margin: '80px auto', padding: '30px', backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <Lock size={40} color="#db2777" style={{ marginBottom: '15px' }} />
           <h2 style={{ margin: '0 0 10px 0', color: '#0f172a' }}>Đăng Nhập Admin</h2>
-          <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>Vui lòng nhập mật khẩu quản trị hệ thống</p>
           <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <input 
               type="password" 
@@ -421,14 +401,11 @@ export default function App() {
             <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
               Xác Nhận Đăng Nhập
             </button>
-            <button type="button" onClick={() => setCurrentView('store')} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '13px' }}>
-              Quay lại cửa hàng
-            </button>
           </form>
         </div>
       )}
 
-      {/* VIEW 3: BẢNG ĐIỀU KHIỂN ADMIN (DASHBOARD) */}
+      {/* VIEW ADMIN DASHBOARD */}
       {currentView === 'admin_dashboard' && (
         <div style={{ maxWidth: '1100px', margin: '30px auto', padding: '0 15px 50px 15px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -437,26 +414,23 @@ export default function App() {
             </h2>
           </div>
 
-          {/* Admin Navigation Tabs */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
             <button 
               onClick={() => setAdminTab('orders')} 
               style={{ border: 'none', background: adminTab === 'orders' ? '#db2777' : '#f1f5f9', color: adminTab === 'orders' ? '#fff' : '#475569', padding: '10px 18px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              <ListOrdered size={18} /> Quản Lý Đơn Hàng ({ordersList.length})
+              <ListOrdered size={18} /> Đơn Hàng ({ordersList.length})
             </button>
             <button 
               onClick={() => setAdminTab('products')} 
               style={{ border: 'none', background: adminTab === 'products' ? '#db2777' : '#f1f5f9', color: adminTab === 'products' ? '#fff' : '#475569', padding: '10px 18px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              <PackagePlus size={18} /> Quản Lý Kho Hoa ({products.length})
+              <PackagePlus size={18} /> Kho Hoa ({products.length})
             </button>
           </div>
 
-          {/* TAB 1: DANH SÁCH ĐƠN HÀNG */}
           {adminTab === 'orders' && (
             <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-              <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a' }}>Danh Sách Đơn Hàng Từ Khách</h3>
               {ordersList.length === 0 ? (
                 <p style={{ color: '#94a3b8', fontSize: '14px' }}>Chưa có đơn hàng nào 🌸</p>
               ) : (
@@ -503,42 +477,27 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: QUẢN LÝ THÊM/XÓA SẢN PHẨM */}
           {adminTab === 'products' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-              {/* Form Thêm Hoa Mới */}
               <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                 <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a' }}>➕ Thêm Mẫu Hoa Mới</h3>
                 <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Tên bó hoa *</label>
-                    <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Ví dụ: Bó Hoa Hồng Nhung..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Giá bán (VNĐ) *</label>
-                    <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Ví dụ: 450000" style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Mô tả ngắn</label>
-                    <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Loại hoa, ý nghĩa..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', height: '60px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Link hình ảnh (URL)</label>
-                    <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', boxSizing: 'border-box' }} />
-                  </div>
-                  <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
+                  <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Tên bó hoa..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
+                  <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Giá bán..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
+                  <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Mô tả ngắn..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', height: '60px' }} />
+                  <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="Link ảnh URL..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
+                  <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
                     Tải Hoa Lên Cửa Hàng
                   </button>
                 </form>
               </div>
 
-              {/* Danh sách hoa hiện có */}
               <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a' }}>🌸 Danh Sách Hoa Hiện Có</h3>
+                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a' }}>🌸 Danh Sách Hoa Cửa Hàng</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '500px', overflowY: 'auto' }}>
                   {products.map(p => (
                     <div key={p.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-                      <img src={p.image_url} alt={p.name} style={{ width: '50px', height: '50px', borderRadius: '6px', objectFit: 'cover' }} />
+                      <img src={p.image_url} alt={p.name} loading="lazy" style={{ width: '50px', height: '50px', borderRadius: '6px', objectFit: 'cover' }} />
                       <div style={{ flexGrow: 1 }}>
                         <h4 style={{ margin: '0 0 2px 0', fontSize: '13px' }}>{p.name}</h4>
                         <span style={{ fontSize: '12px', color: '#db2777', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</span>
@@ -555,10 +514,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Drawer Giỏ Hàng (Store View) */}
+      {/* DRAWER GIỎ HÀNG */}
       {isCartOpen && currentView === 'store' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'flex-end' }}>
-          <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '-5px 0 25px rgba(0,0,0,0.1)' }}>
+          <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             {checkoutStep === 'cart' && (
               <>
                 <div>
@@ -570,12 +529,12 @@ export default function App() {
                   </div>
 
                   {cart.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: '#94a3b8', margin: '40px 0', fontSize: '14px' }}>Giỏ hàng chưa có sản phẩm nào 🌸</p>
+                    <p style={{ textAlign: 'center', color: '#94a3b8', margin: '40px 0', fontSize: '14px' }}>Giỏ hàng đang trống 🌸</p>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxHeight: '60vh', overflowY: 'auto' }}>
                       {cart.map((item) => (
                         <div key={item.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', borderBottom: '1px solid #f8fafc', paddingBottom: '10px' }}>
-                          <img src={item.image_url} alt={item.name} style={{ width: '55px', height: '55px', borderRadius: '8px', objectFit: 'cover' }} />
+                          <img src={item.image_url} alt={item.name} loading="lazy" style={{ width: '55px', height: '55px', borderRadius: '8px', objectFit: 'cover' }} />
                           <div style={{ flexGrow: 1 }}>
                             <h4 style={{ margin: '0 0 4px 0', fontSize: '13px' }}>{item.name}</h4>
                             <span style={{ fontSize: '12px', color: '#db2777', fontWeight: 'bold' }}>{Number(item.price).toLocaleString('vi-VN')} đ</span>
@@ -618,26 +577,14 @@ export default function App() {
                 </div>
 
                 <form onSubmit={handleCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Họ và tên người nhận *</label>
-                    <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nhập tên..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Số điện thoại *</label>
-                    <input type="tel" required value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Nhập SĐT..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Địa chỉ giao hoa *</label>
-                    <textarea required value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} placeholder="Nhập địa chỉ nhận hoa..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', height: '60px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>Lời chúc viết trên thiệp (Tùy chọn)</label>
-                    <textarea value={cardMessage} onChange={e => setCardMessage(e.target.value)} placeholder="Nhập lời chúc..." style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', height: '60px', boxSizing: 'border-box' }} />
-                  </div>
+                  <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Tên người nhận *" style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
+                  <input type="tel" required value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Số điện thoại *" style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
+                  <textarea required value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} placeholder="Địa chỉ giao hoa *" style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', height: '60px' }} />
+                  <textarea value={cardMessage} onChange={e => setCardMessage(e.target.value)} placeholder="Lời chúc thiệp..." style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', height: '60px' }} />
 
-                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: '10px' }}>
+                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
-                      <span>Tổng thanh toán:</span>
+                      <span>Tổng:</span>
                       <span style={{ color: '#db2777' }}>{cartTotal.toLocaleString('vi-VN')} đ</span>
                     </div>
                     <button type="submit" disabled={isSubmitting} style={{ width: '100%', backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
@@ -652,9 +599,7 @@ export default function App() {
               <div style={{ textAlign: 'center', padding: '30px 10px' }}>
                 <CheckCircle2 color="#22c55e" size={60} style={{ margin: '0 auto 15px auto' }} />
                 <h3 style={{ color: '#0f172a', margin: '0 0 10px 0' }}>Đặt Hàng Thành Công!</h3>
-                <p style={{ color: '#64748b', fontSize: '13px', lineHeight: '1.5' }}>
-                  Cảm ơn bạn đã tin tưởng BloomArt. Mã đơn hàng của bạn là <strong>#{orderSuccessId}</strong>. Shop sẽ liên hệ xác nhận đơn qua SĐT sớm nhất!
-                </p>
+                <p style={{ color: '#64748b', fontSize: '13px' }}>Mã đơn hàng: <strong>#{orderSuccessId}</strong></p>
                 <button onClick={() => setIsCartOpen(false)} style={{ marginTop: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
                   Tiếp Tục Mua Sắm
                 </button>
@@ -664,7 +609,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating Chat AI Button */}
+      {/* FLOATING CHAT AI */}
       {currentView === 'store' && (
         <button 
           onClick={() => setIsChatOpen(!isChatOpen)}
@@ -674,7 +619,6 @@ export default function App() {
         </button>
       )}
 
-      {/* Floating Chat AI Widget */}
       {isChatOpen && currentView === 'store' && (
         <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
           <div style={{ backgroundColor: '#db2777', color: '#fff', padding: '12px 16px', fontWeight: 'bold', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -684,27 +628,9 @@ export default function App() {
           
           <div style={{ flexGrow: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
             {chatMessages.map((msg, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', 
-                  backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', 
-                  color: msg.sender === 'user' ? '#fff' : '#1e293b', 
-                  padding: '8px 12px', 
-                  borderRadius: '12px', 
-                  maxWidth: '85%', 
-                  fontSize: '13px', 
-                  lineHeight: '1.4'
-                }}
-              >
+              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', color: msg.sender === 'user' ? '#fff' : '#1e293b', padding: '8px 12px', borderRadius: '12px', maxWidth: '85%', fontSize: '13px', lineHeight: '1.4' }}>
                 {msg.sender === 'bot' ? (
-                  <ReactMarkdown 
-                    components={{
-                      p: ({ node, ...props }) => <p style={{ margin: 0, padding: 0 }} {...props} />,
-                      ul: ({ node, ...props }) => <ul style={{ margin: '4px 0', paddingLeft: '16px' }} {...props} />,
-                      li: ({ node, ...props }) => <li style={{ marginBottom: '2px' }} {...props} />
-                    }}
-                  >
+                  <ReactMarkdown components={{ p: ({ node, ...props }) => <p style={{ margin: 0 }} {...props} /> }}>
                     {msg.text}
                   </ReactMarkdown>
                 ) : (
@@ -712,7 +638,7 @@ export default function App() {
                 )}
               </div>
             ))}
-            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '12px' }}>AI đang tìm bó hoa...</div>}
+            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '12px' }}>AI đang tìm câu trả lời...</div>}
           </div>
 
           <div style={{ padding: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '6px' }}>
@@ -721,7 +647,7 @@ export default function App() {
               value={chatInput} 
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Nhập câu hỏi (vd: hoa tặng mẹ)..." 
+              placeholder="Nhập câu hỏi..." 
               style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', outline: 'none' }}
             />
             <button onClick={handleSendMessage} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
@@ -733,8 +659,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '30px 15px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-        <p style={{ margin: '0 0 5px 0' }}>© 2026 BloomArt Flower Shop - Powered by Cloudflare Workers & Pages</p>
-        <p style={{ margin: 0, fontSize: '11px' }}>Tích hợp trí tuệ nhân tạo Gemini AI</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Powered by Cloudflare Workers & Pages</p>
       </footer>
     </div>
   );
