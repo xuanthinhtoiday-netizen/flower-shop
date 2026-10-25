@@ -286,26 +286,35 @@ export default function App() {
       {/* CSS Layout Fix Chuẩn Toàn Màn Hình */}
       <style>{`
         * { box-sizing: border-box; }
+        
+        /* CHỈNH SỬA TẠI ĐÂY: Chuyển sang tràn viền 100% toàn bộ màn hình */
         .main-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 16px;
+          width: 100%;
+          max-width: 100%;
+          margin: 0;
+          padding: 0 24px;
         }
+        
         .header-inner {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
+          gap: 16px;
           padding: 12px 0;
+          width: 100%;
         }
+
+        /* Tự động chia cột hoa tràn viền theo kích thước màn hình */
+        .product-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 20px;
+          width: 100%;
+        }
+
         .search-box {
           flex: 1;
           max-width: 450px;
-        }
-        .product-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 20px;
         }
         .chat-widget {
           position: fixed;
@@ -322,22 +331,14 @@ export default function App() {
           max-width: 100vw;
         }
 
-        /* Tablet & Laptop nhỏ (769px - 1024px) */
-        @media (max-width: 1024px) {
-          .product-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        }
-
-        /* Mobile & Tablet đứng (< 768px) */
+        /* Responsive di động */
         @media (max-width: 768px) {
           .header-inner { flex-wrap: wrap; }
           .search-box { order: 3; width: 100%; max-width: 100%; }
-          .product-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
         }
-
-        /* Mobile nhỏ (< 480px) */
         @media (max-width: 480px) {
-          .product-grid { grid-template-columns: repeat(1, 1fr); gap: 12px; }
           .btn-text-hide { display: none; }
+          .main-container { padding: 0 12px; }
         }
       `}</style>
 
