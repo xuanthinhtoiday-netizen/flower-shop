@@ -1,8 +1,13 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
+
+// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP BẠN TẠI ĐÂY
+const BANK_ID = "BIDV"; // Ví dụ: MB, VCB, TCB, ACB, BIDV, ICB (VietinBank)
+const ACCOUNT_NO = "8884416572"; // Thay bằng Số tài khoản ngân hàng thực tế của bạn
+const ACCOUNT_NAME = "BLOOMART SHOP";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('store');
@@ -32,7 +37,9 @@ export default function App() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [cardMessage, setCardMessage] = useState('');
   const [orderSuccessId, setOrderSuccessId] = useState(null);
+  const [orderSuccessTotal, setOrderSuccessTotal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Admin State
   const [adminTab, setAdminTab] = useState('orders');
@@ -248,6 +255,7 @@ export default function App() {
       const data = await res.json();
       if (res.ok) {
         setOrderSuccessId(data.orderId);
+        setOrderSuccessTotal(cartTotal);
         setCheckoutStep('success');
         setCart([]);
       }
@@ -279,6 +287,12 @@ export default function App() {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleCopyText = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const renderStatusBadge = (status) => {
@@ -384,7 +398,6 @@ export default function App() {
         .category-btn { transition: all 0.2s ease; }
         .category-btn:hover { transform: translateY(-2px); }
 
-        /* Admin UI Pink-Bright Theme */
         .admin-stat-card-light {
           background: #ffffff;
           border-radius: 18px;
@@ -402,12 +415,8 @@ export default function App() {
           border-color: #f472b6;
         }
 
-        .admin-table-row-light {
-          transition: background-color 0.2s ease;
-        }
-        .admin-table-row-light:hover {
-          background-color: #fff1f2 !important;
-        }
+        .admin-table-row-light { transition: background-color 0.2s ease; }
+        .admin-table-row-light:hover { background-color: #fff1f2 !important; }
 
         .chat-widget {
           position: fixed;
@@ -421,7 +430,7 @@ export default function App() {
           animation: fadeInUp 0.3s ease-out;
         }
         .cart-drawer {
-          width: 400px;
+          width: 420px;
           max-width: 100vw;
           animation: slideInRight 0.3s ease-out;
         }
@@ -597,11 +606,10 @@ export default function App() {
         </>
       )}
 
-      {/* VIEW ADMIN DASHBOARD - PHONG CÁCH PINK LUXURY ĐẸP MẮT */}
+      {/* VIEW ADMIN DASHBOARD */}
       {currentView === 'admin_dashboard' && (
         <div className="main-container animate-fade-in" style={{ padding: '30px 24px 60px 24px' }}>
           
-          {/* Admin Hero Header */}
           <div style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', borderRadius: '20px', padding: '24px 28px', marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', boxShadow: '0 8px 20px rgba(219, 39, 119, 0.08)' }}>
             <div>
               <span style={{ backgroundColor: '#fff', color: '#be185d', padding: '4px 12px', borderRadius: '15px', fontSize: '12px', fontWeight: '800' }}>
@@ -622,7 +630,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Cards Thống Kê Sáng Sủa Đẳng Cấp */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px', marginBottom: '30px' }}>
             <div className="admin-stat-card-light">
               <div style={{ backgroundColor: '#fce7f3', padding: '14px', borderRadius: '14px', display: 'flex', color: '#db2777' }}>
@@ -673,7 +680,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Tabs */}
           <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px' }}>
             <button 
               onClick={() => setAdminTab('orders')} 
@@ -691,7 +697,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* TAB 1: BẢNG ĐƠN HÀNG SÁNG VÀ SẮC NÉT */}
           {adminTab === 'orders' && (
             <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)' }}>
               {ordersList.length === 0 ? (
@@ -740,11 +745,8 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: QUẢN LÝ KHO HOA */}
           {adminTab === 'products' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-              
-              {/* Form Thêm Mẫu Hoa Mới */}
               <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)', height: 'fit-content' }}>
                 <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
                   <PackagePlus color="#db2777" size={20} /> Thêm Mẫu Hoa Mới
@@ -772,7 +774,6 @@ export default function App() {
                 </form>
               </div>
 
-              {/* Danh Sách Mẫu Hoa Trong Kho */}
               <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)' }}>
                 <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
                   <Package color="#db2777" size={20} /> Danh Sách Hoa Trong Kho
@@ -792,7 +793,6 @@ export default function App() {
                   ))}
                 </div>
               </div>
-
             </div>
           )}
         </div>
@@ -856,7 +856,7 @@ export default function App() {
         </div>
       )}
 
-      {/* VIEW TRA CỨU ĐƠN HÀNG */}
+      {/* VIEW TRA CỨU ĐƠN HÀNG + HIỂN THỊ VIETQR */}
       {currentView === 'track_order' && (
         <div className="animate-fade-in" style={{ maxWidth: '580px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0 }}>
@@ -879,17 +879,35 @@ export default function App() {
           </form>
 
           {trackedOrders.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {trackedOrders.map(ord => (
-                <div key={ord.id} style={{ border: '1px solid #f1f5f9', borderRadius: '10px', padding: '14px', backgroundColor: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '13px' }}>Mã đơn: #{ord.id}</span>
+                <div key={ord.id} style={{ border: '1px solid #f1f5f9', borderRadius: '14px', padding: '16px', backgroundColor: '#f8fafc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#be185d' }}>Mã đơn: #{ord.id}</span>
                     {renderStatusBadge(ord.status)}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
                     <div>Khách hàng: <strong>{ord.customer_name}</strong> ({ord.customer_phone})</div>
-                    <div>Tổng tiền: <strong style={{ color: '#db2777' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</strong></div>
+                    <div>Địa chỉ: {ord.delivery_address || ord.address}</div>
+                    <div>Tổng tiền: <strong style={{ color: '#db2777', fontSize: '14px' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</strong></div>
                   </div>
+
+                  {/* Hiển thị QR thanh toán cho đơn chưa xử lý */}
+                  {(!ord.status || ord.status === 'PENDING') && (
+                    <div style={{ backgroundColor: '#fff', border: '1px solid #fbcfe8', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 'bold', color: '#db2777', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <QrCode size={16} /> Mã VietQR Thanh Toán Đơn #{ord.id}
+                      </p>
+                      <img 
+                        src={`https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.png?amount=${ord.total_price}&addInfo=BLOOMART%20${ord.id}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`}
+                        alt="VietQR Payment"
+                        style={{ width: '180px', height: '180px', borderRadius: '8px', border: '1px solid #f1f5f9' }}
+                      />
+                      <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+                        Quét mã trên App Ngân hàng (Nội dung: <strong>BLOOMART {ord.id}</strong>)
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -924,10 +942,10 @@ export default function App() {
         </div>
       )}
 
-      {/* DRAWER GIỎ HÀNG */}
+      {/* DRAWER GIỎ HÀNG + TÍCH HỢP VIETQR KHI ĐẶT HÀNG THÀNH CÔNG */}
       {isCartOpen && currentView === 'store' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'flex-end' }}>
-          <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflowY: 'auto' }}>
             {checkoutStep === 'cart' && (
               <>
                 <div>
@@ -1005,13 +1023,47 @@ export default function App() {
               </div>
             )}
 
+            {/* MÀN HÌNH ĐẶT HÀNG THÀNH CÔNG VỚI MÃ VIETQR TỰ ĐỘNG */}
             {checkoutStep === 'success' && (
-              <div style={{ textAlign: 'center', padding: '25px 10px' }}>
-                <CheckCircle2 color="#22c55e" size={54} style={{ margin: '0 auto 12px auto' }} />
-                <h3 style={{ color: '#0f172a', margin: '0 0 8px 0', fontSize: '16px' }}>Đặt Hàng Thành Công!</h3>
-                <p style={{ color: '#64748b', fontSize: '12px' }}>Mã đơn hàng của bạn là: <strong>#{orderSuccessId}</strong></p>
-                <button onClick={() => setIsCartOpen(false)} style={{ marginTop: '16px', backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>
-                  Tiếp Tục Mua Sắm
+              <div style={{ textAlign: 'center', padding: '10px 5px' }}>
+                <CheckCircle2 color="#22c55e" size={48} style={{ margin: '0 auto 8px auto' }} />
+                <h3 style={{ color: '#0f172a', margin: '0 0 4px 0', fontSize: '16px' }}>Đặt Hàng Thành Công!</h3>
+                <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 14px 0' }}>Mã đơn hàng của bạn: <strong style={{ color: '#be185d' }}>#{orderSuccessId}</strong></p>
+
+                {/* KHUNG THANH TOÁN VIETQR */}
+                <div style={{ backgroundColor: '#fdf2f8', border: '1px solid #fbcfe8', borderRadius: '14px', padding: '14px', marginBottom: '16px' }}>
+                  <span style={{ backgroundColor: '#db2777', color: '#fff', padding: '3px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <QrCode size={13} /> THANH TOÁN QUA VIETQR
+                  </span>
+
+                  <div style={{ margin: '12px 0' }}>
+                    <img 
+                      src={`https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.png?amount=${orderSuccessTotal}&addInfo=BLOOMART%20${orderSuccessId}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`}
+                      alt="VietQR Code"
+                      style={{ width: '200px', height: '200px', borderRadius: '10px', border: '2px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                    />
+                  </div>
+
+                  <div style={{ textAlign: 'left', fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: '#fff', padding: '10px', borderRadius: '8px' }}>
+                    <div>Ngân hàng: <strong>{BANK_ID}</strong></div>
+                    <div>Chủ TK: <strong>{ACCOUNT_NAME}</strong></div>
+                    <div>Số TK: <strong>{ACCOUNT_NO}</strong></div>
+                    <div>Số tiền: <strong style={{ color: '#db2777' }}>{orderSuccessTotal.toLocaleString('vi-VN')} đ</strong></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '6px 8px', borderRadius: '6px' }}>
+                      <span>Nội dung: <strong>BLOOMART {orderSuccessId}</strong></span>
+                      <button 
+                        onClick={() => handleCopyText(`BLOOMART ${orderSuccessId}`)}
+                        style={{ border: 'none', background: '#db2777', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {copied ? <Check size={12} /> : <Copy size={12} />}
+                        {copied ? 'Đã chép' : 'Sao chép'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button onClick={() => setIsCartOpen(false)} style={{ width: '100%', backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>
+                  Đã Thanh Toán / Quay Lại
                 </button>
               </div>
             )}
@@ -1059,7 +1111,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Bright Pink Modern Admin UI</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Integrated VietQR Dynamic Payment</p>
       </footer>
     </div>
   );
