@@ -121,13 +121,14 @@ export default {
       }
     }
 
-    // 9. API Chatbot AI (Tối ưu hóa phản hồi tự nhiên, linh hoạt cho mọi câu hỏi)
+    // 9. API Chatbot AI (Tối ưu hóa, chống lỗi đọc body nhiều lần)
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
+        // Chỉ đọc request.json() duy nhất một lần ở đây
         const body = await request.json();
         const userMessage = body.message || "";
 
-        // Lấy danh sách hoa trong DB D1 để AI nắm rõ sản phẩm hiện có
+        // Lấy danh sách hoa trong DB D1
         const { results: products } = await env.DB.prepare("SELECT name, price, description FROM products").all();
         const productListText = products.map(p => `- ${p.name}: ${Number(p.price).toLocaleString('vi-VN')} đ (${p.description})`).join("\n");
 
@@ -145,11 +146,11 @@ Nhiệm vụ của bạn:
 
         if (GEMINI_API_KEY) {
           try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json"
-            },
+              },
               body: JSON.stringify({
                 contents: [
                   { 
@@ -164,10 +165,11 @@ Nhiệm vụ của bạn:
               })
             });
 
-            const data = await res.json();
+            // Chỉ đọc apiRes.json() duy nhất một lần vào biến riêng
+            const responseData = await apiRes.json();
 
-            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-              const replyText = data.candidates[0].content.parts[0].text;
+            if (responseData.candidates && responseData.candidates[0]?.content?.parts[0]?.text) {
+              const replyText = responseData.candidates[0].content.parts[0].text;
               return Response.json({ reply: replyText }, { headers: corsHeaders });
             }
           } catch (e) {
@@ -175,16 +177,15 @@ Nhiệm vụ của bạn:
           }
         }
 
-        // Fallback thông minh hơn nếu không gọi được API Key
+        // Fallback thông minh nếu chưa cấu hình key hoặc gọi AI lỗi
         const sampleProducts = products.slice(0, 3).map(p => `• **${p.name}** (${Number(p.price).toLocaleString('vi-VN')} đ)`).join("\n");
         const fallbackReply = `Dạ BloomArt xin chào bạn! Cửa hàng đang có sẵn rất nhiều mẫu hoa tươi thắm:\n\n${sampleProducts}\n\nBạn muốn tìm hoa tặng dịp gì hay cần shop tư vấn mẫu theo sở thích không ạ? 🌸`;
 
         return Response.json({ reply: fallbackReply }, { headers: corsHeaders });
       } catch (error) {
-        return Response.json({ reply: "Dạ BloomArt đã nhận được thông tin của bạn. Bạn cần tư vấn thêm mẫu hoa nào cứ nhắn shop nhé! 🌸" }, { status: 500, headers: corsHeaders });
+        return Response.json({ reply: `Dạ BloomArt đã nhận được thông tin của bạn. Bạn cần tư vấn thêm mẫu hoa nào cứ nhắn shop nhé! 🌸` }, { status: 500, headers: corsHeaders });
       }
     }
-
     return new Response("API Flower Shop OK!", { status: 200, headers: corsHeaders });
   },
 };
