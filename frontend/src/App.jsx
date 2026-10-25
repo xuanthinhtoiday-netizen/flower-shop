@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
@@ -283,15 +283,15 @@ export default function App() {
 
   const renderStatusBadge = (status) => {
     switch (status) {
-      case 'CONFIRMED': return <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bbf7d0' }}>✅ Đã xác nhận</span>;
-      case 'COMPLETED': return <span style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bfdbfe' }}>🎉 Hoàn thành</span>;
-      case 'CANCELED': return <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fecaca' }}>❌ Đã hủy</span>;
-      default: return <span style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fde68a' }}>🕒 Chờ duyệt</span>;
+      case 'CONFIRMED': return <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bbf7d0' }}>✅ Đã xác nhận</span>;
+      case 'COMPLETED': return <span style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bfdbfe' }}>🎉 Hoàn thành</span>;
+      case 'CANCELED': return <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fecaca' }}>❌ Đã hủy</span>;
+      default: return <span style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fde68a' }}>🕒 Chờ duyệt</span>;
     }
   };
 
   return (
-    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: currentView === 'admin_dashboard' ? '#0f172a' : '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: currentView === 'admin_dashboard' ? '#f8fafc' : '#334155', transition: 'background-color 0.3s ease' }}>
+    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: '#334155' }}>
       
       {/* CSS STYLES */}
       <style>{`
@@ -384,28 +384,29 @@ export default function App() {
         .category-btn { transition: all 0.2s ease; }
         .category-btn:hover { transform: translateY(-2px); }
 
-        /* Admin UI Dashboard Cards */
-        .admin-stat-card {
-          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-          border: 1px solid #334155;
-          border-radius: 16px;
-          padding: 20px;
+        /* Admin UI Pink-Bright Theme */
+        .admin-stat-card-light {
+          background: #ffffff;
+          border-radius: 18px;
+          padding: 22px;
           display: flex;
           align-items: center;
           gap: 16px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-          transition: all 0.3s ease;
+          box-shadow: 0 8px 20px rgba(219, 39, 119, 0.06);
+          border: 1px solid #fce7f3;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .admin-stat-card:hover {
-          transform: translateY(-4px);
-          border-color: #db2777;
+        .admin-stat-card-light:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 14px 30px rgba(219, 39, 119, 0.15);
+          border-color: #f472b6;
         }
 
-        .admin-table-row {
+        .admin-table-row-light {
           transition: background-color 0.2s ease;
         }
-        .admin-table-row:hover {
-          background-color: #1e293b !important;
+        .admin-table-row-light:hover {
+          background-color: #fff1f2 !important;
         }
 
         .chat-widget {
@@ -440,16 +441,14 @@ export default function App() {
         }
       `}</style>
 
-      {/* Top Banner (Khách hàng) */}
-      {currentView !== 'admin_dashboard' && (
-        <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={14} />
-          <span>🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp chúc mừng miễn phí</span>
-        </div>
-      )}
+      {/* Top Banner */}
+      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+        <Sparkles size={14} />
+        <span>🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp chúc mừng miễn phí</span>
+      </div>
 
-      {/* Header Header chuyển màu theo giao diện */}
-      <header style={{ backgroundColor: currentView === 'admin_dashboard' ? '#1e293b' : '#ffffff', borderBottom: currentView === 'admin_dashboard' ? '1px solid #334155' : 'none', boxShadow: currentView === 'admin_dashboard' ? 'none' : '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
+      {/* Header */}
+      <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
         <div className="main-container">
           <div className="header-inner">
             <div onClick={() => setCurrentView('store')} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#db2777', fontWeight: '800', fontSize: '20px', cursor: 'pointer', flexShrink: 0 }}>
@@ -458,7 +457,7 @@ export default function App() {
               </div>
               <span style={{ background: 'linear-gradient(45deg, #db2777, #9333ea)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BloomArt</span>
               {currentView === 'admin_dashboard' && (
-                <span style={{ backgroundColor: '#db2777', color: '#fff', fontSize: '10px', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold', marginLeft: '6px' }}>ADMIN CONTROL</span>
+                <span style={{ backgroundColor: '#be185d', color: '#fff', fontSize: '10px', padding: '3px 10px', borderRadius: '12px', fontWeight: 'bold', marginLeft: '6px' }}>ADMIN PANEL</span>
               )}
             </div>
 
@@ -598,68 +597,76 @@ export default function App() {
         </>
       )}
 
-      {/* VIEW ADMIN DASHBOARD PRO DÙNG TÔNG TỐI HIỆN ĐẠI */}
+      {/* VIEW ADMIN DASHBOARD - PHONG CÁCH PINK LUXURY ĐẸP MẮT */}
       {currentView === 'admin_dashboard' && (
         <div className="main-container animate-fade-in" style={{ padding: '30px 24px 60px 24px' }}>
           
-          {/* Admin Header Title */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          {/* Admin Hero Header */}
+          <div style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', borderRadius: '20px', padding: '24px 28px', marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', boxShadow: '0 8px 20px rgba(219, 39, 119, 0.08)' }}>
             <div>
-              <h1 style={{ fontSize: '26px', color: '#f8fafc', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <LayoutDashboard color="#db2777" size={28} /> Bảng Điều Khiển Quản Trị
+              <span style={{ backgroundColor: '#fff', color: '#be185d', padding: '4px 12px', borderRadius: '15px', fontSize: '12px', fontWeight: '800' }}>
+                🌸 BLOOMART MANAGEMENT
+              </span>
+              <h1 style={{ fontSize: '26px', color: '#831843', margin: '8px 0 4px 0', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <LayoutDashboard color="#be185d" size={28} /> Bảng Điều Khiển Quản Trị
               </h1>
-              <p style={{ color: '#94a3b8', fontSize: '13px', margin: '5px 0 0 0' }}>Theo dõi doanh thu, trạng thái đơn hàng và quản lý kho hoa realtime</p>
+              <p style={{ color: '#9d174d', fontSize: '13px', margin: 0 }}>Quản lý doanh thu, danh sách đơn hàng và kho hoa tươi realtime</p>
             </div>
-            <button onClick={fetchAdminOrders} className="category-btn" style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #475569', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🔄 Tải Lại Dữ Liệu
+
+            <button 
+              onClick={fetchAdminOrders} 
+              className="category-btn"
+              style={{ backgroundColor: '#fff', color: '#be185d', border: '1px solid #fbcfe8', padding: '10px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+            >
+              <RefreshCw size={16} /> Tải Lại Dữ Liệu
             </button>
           </div>
 
-          {/* Metrics Metric Thống Kê Nổi Bật */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-            <div className="admin-stat-card">
-              <div style={{ backgroundColor: '#831843', padding: '14px', borderRadius: '12px', display: 'flex', color: '#f472b6' }}>
+          {/* Cards Thống Kê Sáng Sủa Đẳng Cấp */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            <div className="admin-stat-card-light">
+              <div style={{ backgroundColor: '#fce7f3', padding: '14px', borderRadius: '14px', display: 'flex', color: '#db2777' }}>
                 <DollarSign size={26} />
               </div>
               <div>
-                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>TỔNG DOANH THU</span>
-                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>TỔNG DOANH THU</span>
+                <div style={{ color: '#be185d', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
                   {adminStats.totalRevenue.toLocaleString('vi-VN')} đ
                 </div>
               </div>
             </div>
 
-            <div className="admin-stat-card">
-              <div style={{ backgroundColor: '#1e3a8a', padding: '14px', borderRadius: '12px', display: 'flex', color: '#60a5fa' }}>
+            <div className="admin-stat-card-light">
+              <div style={{ backgroundColor: '#e0f2fe', padding: '14px', borderRadius: '14px', display: 'flex', color: '#0284c7' }}>
                 <ShoppingCart size={26} />
               </div>
               <div>
-                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>TỔNG ĐƠN HÀNG</span>
-                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>TỔNG ĐƠN HÀNG</span>
+                <div style={{ color: '#0369a1', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
                   {ordersList.length} đơn
                 </div>
               </div>
             </div>
 
-            <div className="admin-stat-card">
-              <div style={{ backgroundColor: '#065f46', padding: '14px', borderRadius: '12px', display: 'flex', color: '#34d399' }}>
+            <div className="admin-stat-card-light">
+              <div style={{ backgroundColor: '#dcfce7', padding: '14px', borderRadius: '14px', display: 'flex', color: '#16a34a' }}>
                 <TrendingUp size={26} />
               </div>
               <div>
-                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>ĐƠN HOÀN THÀNH</span>
-                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>ĐƠN HOÀN THÀNH</span>
+                <div style={{ color: '#15803d', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
                   {adminStats.completedCount} đơn
                 </div>
               </div>
             </div>
 
-            <div className="admin-stat-card">
-              <div style={{ backgroundColor: '#78350f', padding: '14px', borderRadius: '12px', display: 'flex', color: '#fbbf24' }}>
+            <div className="admin-stat-card-light">
+              <div style={{ backgroundColor: '#fef3c7', padding: '14px', borderRadius: '14px', display: 'flex', color: '#d97706' }}>
                 <Package size={26} />
               </div>
               <div>
-                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>HOA TRONG KHO</span>
-                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>MẪU HOA TRONG KHO</span>
+                <div style={{ color: '#b45309', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
                   {products.length} mẫu
                 </div>
               </div>
@@ -667,31 +674,33 @@ export default function App() {
           </div>
 
           {/* Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px' }}>
             <button 
               onClick={() => setAdminTab('orders')} 
-              style={{ border: 'none', background: adminTab === 'orders' ? '#db2777' : '#1e293b', color: '#fff', padding: '10px 20px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+              className="category-btn"
+              style={{ border: 'none', background: adminTab === 'orders' ? '#db2777' : '#fff', color: adminTab === 'orders' ? '#fff' : '#475569', padding: '10px 22px', borderRadius: '25px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}
             >
-              <ListOrdered size={18} /> Danh Sách Đơn Hàng ({ordersList.length})
+              <ListOrdered size={18} /> Quản Lý Đơn Hàng ({ordersList.length})
             </button>
             <button 
               onClick={() => setAdminTab('products')} 
-              style={{ border: 'none', background: adminTab === 'products' ? '#db2777' : '#1e293b', color: '#fff', padding: '10px 20px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+              className="category-btn"
+              style={{ border: 'none', background: adminTab === 'products' ? '#db2777' : '#fff', color: adminTab === 'products' ? '#fff' : '#475569', padding: '10px 22px', borderRadius: '25px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}
             >
               <PackagePlus size={18} /> Quản Lý Kho Hoa ({products.length})
             </button>
           </div>
 
-          {/* TAB 1: BẢNG ĐƠN HÀNG DẠNG DARK THEME PRO */}
+          {/* TAB 1: BẢNG ĐƠN HÀNG SÁNG VÀ SẮC NÉT */}
           {adminTab === 'orders' && (
-            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', padding: '20px', border: '1px solid #334155', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)' }}>
               {ordersList.length === 0 ? (
                 <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>Chưa có đơn hàng nào phát sinh 🌸</p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8' }}>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
                         <th style={{ padding: '14px 12px' }}>MÃ ĐƠN</th>
                         <th style={{ padding: '14px 12px' }}>KHÁCH HÀNG</th>
                         <th style={{ padding: '14px 12px' }}>SĐT</th>
@@ -703,18 +712,18 @@ export default function App() {
                     </thead>
                     <tbody>
                       {ordersList.map((ord) => (
-                        <tr key={ord.id} className="admin-table-row" style={{ borderBottom: '1px solid #334155', color: '#f8fafc' }}>
-                          <td style={{ padding: '14px 12px', fontWeight: 'bold', color: '#f472b6' }}>#{ord.id}</td>
+                        <tr key={ord.id} className="admin-table-row-light" style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
+                          <td style={{ padding: '14px 12px', fontWeight: '800', color: '#be185d' }}>#{ord.id}</td>
                           <td style={{ padding: '14px 12px', fontWeight: 'bold' }}>{ord.customer_name}</td>
-                          <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>{ord.customer_phone}</td>
-                          <td style={{ padding: '14px 12px', color: '#cbd5e1', maxWidth: '200px' }}>{ord.delivery_address || ord.address}</td>
-                          <td style={{ padding: '14px 12px', color: '#94a3b8', fontStyle: 'italic', maxWidth: '180px' }}>{ord.card_message || 'Không có'}</td>
-                          <td style={{ padding: '14px 12px', fontWeight: '800', color: '#38bdf8' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</td>
+                          <td style={{ padding: '14px 12px', color: '#475569' }}>{ord.customer_phone}</td>
+                          <td style={{ padding: '14px 12px', color: '#475569', maxWidth: '200px' }}>{ord.delivery_address || ord.address}</td>
+                          <td style={{ padding: '14px 12px', color: '#64748b', fontStyle: 'italic', maxWidth: '180px' }}>{ord.card_message || 'Không có'}</td>
+                          <td style={{ padding: '14px 12px', fontWeight: '800', color: '#db2777' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</td>
                           <td style={{ padding: '14px 12px' }}>
                             <select 
                               value={ord.status || 'PENDING'} 
                               onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
-                              style={{ backgroundColor: '#0f172a', color: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #475569', fontSize: '12px', fontWeight: 'bold', outline: 'none', cursor: 'pointer' }}
+                              style={{ backgroundColor: '#fff', color: '#0f172a', padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold', outline: 'none', cursor: 'pointer' }}
                             >
                               <option value="PENDING">🕒 Chờ duyệt</option>
                               <option value="CONFIRMED">✅ Đã xác nhận</option>
@@ -734,52 +743,56 @@ export default function App() {
           {/* TAB 2: QUẢN LÝ KHO HOA */}
           {adminTab === 'products' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-              <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '16px', border: '1px solid #334155', height: 'fit-content' }}>
-                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              
+              {/* Form Thêm Mẫu Hoa Mới */}
+              <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)', height: 'fit-content' }}>
+                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
                   <PackagePlus color="#db2777" size={20} /> Thêm Mẫu Hoa Mới
                 </h3>
                 <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>TÊN BÓ HOA</label>
-                    <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Tên bó hoa..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>TÊN BÓ HOA</label>
+                    <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Nhập tên bó hoa..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>GIÁ BÁN (VNĐ)</label>
-                    <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Ví dụ: 500000" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>GIÁ BÁN (VNĐ)</label>
+                    <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Ví dụ: 500000" style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>MÔ TẢ NGẮN</label>
-                    <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Mô tả loài hoa, ý nghĩa..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px', height: '70px' }} />
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>MÔ TẢ NGẮN</label>
+                    <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Mô tả loại hoa, ý nghĩa..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px', height: '70px' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>LINK HÌNH Ảnh (URL)</label>
-                    <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>LINK HÌNH ẢNH (URL)</label>
+                    <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
                   </div>
-                  <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', marginTop: '10px' }}>
+                  <button type="submit" className="pulse-btn" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', marginTop: '10px' }}>
                     + Đăng Hoa Lên Cửa Hàng
                   </button>
                 </form>
               </div>
 
-              <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '16px', border: '1px solid #334155' }}>
-                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Danh Sách Mẫu Hoa Trong Kho */}
+              <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)' }}>
+                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
                   <Package color="#db2777" size={20} /> Danh Sách Hoa Trong Kho
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '500px', overflowY: 'auto', marginTop: '16px' }}>
                   {products.map(p => (
-                    <div key={p.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '10px' }}>
+                    <div key={p.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px' }}>
                       <img src={p.image_url} alt={p.name} loading="lazy" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
                       <div style={{ flexGrow: 1 }}>
-                        <h4 style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#f8fafc' }}>{p.name}</h4>
-                        <span style={{ fontSize: '12px', color: '#f472b6', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</span>
+                        <h4 style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#0f172a', fontWeight: 'bold' }}>{p.name}</h4>
+                        <span style={{ fontSize: '12px', color: '#db2777', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</span>
                       </div>
-                      <button onClick={() => handleDeleteProduct(p.id)} style={{ border: 'none', background: '#451a03', color: '#f87171', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                      <button onClick={() => handleDeleteProduct(p.id)} className="category-btn" style={{ border: 'none', background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
                         Xóa
                       </button>
                     </div>
                   ))}
                 </div>
               </div>
+
             </div>
           )}
         </div>
@@ -1045,8 +1058,8 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer style={{ backgroundColor: currentView === 'admin_dashboard' ? '#0f172a' : '#fff', borderTop: currentView === 'admin_dashboard' ? '1px solid #334155' : '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Professional Admin Dashboard Integrated</p>
+      <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Bright Pink Modern Admin UI</p>
       </footer>
     </div>
   );
