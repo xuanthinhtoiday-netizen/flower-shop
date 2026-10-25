@@ -140,7 +140,7 @@ export default {
         }
 
         // Gọi API chuẩn bằng fetch JavaScript với URL thuần túy
-        const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json"
@@ -154,7 +154,7 @@ export default {
             ],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 500,
+              maxOutputTokens: 2000,
             }
           })
         });
