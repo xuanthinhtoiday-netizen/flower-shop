@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, QrCode, Copy, Check, HeartHandshake } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
-// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP BẠN TẠI ĐÂY
-const BANK_ID = "BIDV"; // Ví dụ: MB, VCB, TCB, ACB, BIDV, ICB (VietinBank)
-const ACCOUNT_NO = "8884416572"; // Thay bằng Số tài khoản ngân hàng thực tế của bạn
-const ACCOUNT_NAME = "BLOOMART SHOP";
+// 🏦 CẤU HÌNH NGÂN HÀNG CỦA SHOP
+const BANK_ID = "BIDV"; 
+const ACCOUNT_NO = "8884416572"; 
+const ACCOUNT_NAME = "CAO XUÂN THỊNH";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('store');
@@ -49,11 +49,14 @@ export default function App() {
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductImage, setNewProductImage] = useState('');
 
-  // AI Chat
+  // AI Chat Advanced State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'bot', text: 'Xin chào! Bạn cần tư vấn chọn hoa cho dịp nào ạ? 🌸' }
+    { 
+      sender: 'bot', 
+      text: 'Xin chào! Mình là **Trợ lý AI BloomArt** 🌸. Bạn cần chọn hoa cho dịp nào (Tình yêu, Sinh nhật, Khai trương) hay cần gợi ý lời chúc thiệp ạ?' 
+    }
   ]);
   const [isTyping, setIsTyping] = useState(false);
 
@@ -100,7 +103,6 @@ export default function App() {
     }
   }, [currentView, fetchAdminOrders]);
 
-  // Tính toán thống kê Admin
   const adminStats = useMemo(() => {
     const totalRevenue = ordersList
       .filter(o => o.status === 'COMPLETED' || o.status === 'CONFIRMED' || !o.status || o.status === 'PENDING')
@@ -266,13 +268,28 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
+  // AI XỬ LÝ NÂNG CẤP TƯ VẤN + GỢI Ý HOA + TẠO LỜI CHÚC THIỆP
+  const handleSendMessage = async (customMsg = null) => {
+    const userMsg = customMsg || chatInput;
+    if (!userMsg.trim()) return;
 
-    const userMsg = chatInput;
     setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
-    setChatInput('');
+    if (!customMsg) setChatInput('');
     setIsTyping(true);
+
+    // Thuật toán thông minh lọc hoa khớp câu hỏi ở Frontend
+    const query = userMsg.toLowerCase();
+    let suggestedFlowers = [];
+
+    if (query.includes('tình yêu') || query.includes('người yêu') || query.includes('vợ') || query.includes('hồng')) {
+      suggestedFlowers = products.filter(p => p.name.includes('Hồng') || p.description.includes('tình yêu'));
+    } else if (query.includes('sinh nhật') || query.includes('bạn') || query.includes('vui')) {
+      suggestedFlowers = products.filter(p => p.name.includes('Hướng Dương') || p.name.includes('Cầu Vồng') || p.price <= 500000);
+    } else if (query.includes('rẻ') || query.includes('500') || query.includes('tiết kiệm')) {
+      suggestedFlowers = products.filter(p => Number(p.price) <= 500000);
+    } else {
+      suggestedFlowers = products.slice(0, 2); // Trả về 2 mẫu ngẫu nhiên
+    }
 
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
@@ -281,9 +298,24 @@ export default function App() {
         body: JSON.stringify({ message: userMsg })
       });
       const data = await res.json();
-      setChatMessages(prev => [...prev, { sender: 'bot', text: data.reply || 'Cửa hàng đã nhận thông tin!' }]);
+
+      setChatMessages(prev => [
+        ...prev, 
+        { 
+          sender: 'bot', 
+          text: data.reply || 'Dưới đây là một số mẫu hoa đẹp nhất phù hợp với yêu cầu của bạn:',
+          suggestedProducts: suggestedFlowers.slice(0, 2)
+        }
+      ]);
     } catch {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI!' }]);
+      setChatMessages(prev => [
+        ...prev, 
+        { 
+          sender: 'bot', 
+          text: 'BloomArt gợi ý bạn tham khảo ngay 2 mẫu hoa bán chạy này ạ:',
+          suggestedProducts: products.slice(0, 2)
+        }
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -422,8 +454,8 @@ export default function App() {
           position: fixed;
           bottom: 90px;
           right: 20px;
-          width: 360px;
-          height: 500px;
+          width: 380px;
+          height: 520px;
           max-width: calc(100vw - 32px);
           max-height: calc(100vh - 120px);
           z-index: 1000;
@@ -856,7 +888,7 @@ export default function App() {
         </div>
       )}
 
-      {/* VIEW TRA CỨU ĐƠN HÀNG + HIỂN THỊ VIETQR */}
+      {/* VIEW TRA CỨU ĐƠN HÀNG */}
       {currentView === 'track_order' && (
         <div className="animate-fade-in" style={{ maxWidth: '580px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0 }}>
@@ -892,7 +924,6 @@ export default function App() {
                     <div>Tổng tiền: <strong style={{ color: '#db2777', fontSize: '14px' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</strong></div>
                   </div>
 
-                  {/* Hiển thị QR thanh toán cho đơn chưa xử lý */}
                   {(!ord.status || ord.status === 'PENDING') && (
                     <div style={{ backgroundColor: '#fff', border: '1px solid #fbcfe8', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                       <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 'bold', color: '#db2777', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -942,7 +973,7 @@ export default function App() {
         </div>
       )}
 
-      {/* DRAWER GIỎ HÀNG + TÍCH HỢP VIETQR KHI ĐẶT HÀNG THÀNH CÔNG */}
+      {/* DRAWER GIỎ HÀNG */}
       {isCartOpen && currentView === 'store' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'flex-end' }}>
           <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflowY: 'auto' }}>
@@ -1023,14 +1054,12 @@ export default function App() {
               </div>
             )}
 
-            {/* MÀN HÌNH ĐẶT HÀNG THÀNH CÔNG VỚI MÃ VIETQR TỰ ĐỘNG */}
             {checkoutStep === 'success' && (
               <div style={{ textAlign: 'center', padding: '10px 5px' }}>
                 <CheckCircle2 color="#22c55e" size={48} style={{ margin: '0 auto 8px auto' }} />
                 <h3 style={{ color: '#0f172a', margin: '0 0 4px 0', fontSize: '16px' }}>Đặt Hàng Thành Công!</h3>
                 <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 14px 0' }}>Mã đơn hàng của bạn: <strong style={{ color: '#be185d' }}>#{orderSuccessId}</strong></p>
 
-                {/* KHUNG THANH TOÁN VIETQR */}
                 <div style={{ backgroundColor: '#fdf2f8', border: '1px solid #fbcfe8', borderRadius: '14px', padding: '14px', marginBottom: '16px' }}>
                   <span style={{ backgroundColor: '#db2777', color: '#fff', padding: '3px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <QrCode size={13} /> THANH TOÁN QUA VIETQR
@@ -1071,7 +1100,7 @@ export default function App() {
         </div>
       )}
 
-      {/* FLOATING CHAT AI */}
+      {/* FLOATING CHAT AI NÂNG CẤP HIỂN THỊ THẺ HOA TRỰC TIẾP */}
       {currentView === 'store' && (
         <button onClick={() => setIsChatOpen(!isChatOpen)} className="pulse-btn" style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
@@ -1079,30 +1108,62 @@ export default function App() {
       )}
 
       {isChatOpen && currentView === 'store' && (
-        <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+        <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '18px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
           <div style={{ backgroundColor: '#db2777', color: '#fff', padding: '12px 16px', fontWeight: 'bold', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Trợ Lý Tư Vấn Hoa AI</span>
             <button onClick={() => setIsChatOpen(false)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
           </div>
           
-          <div style={{ flexGrow: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
+          <div style={{ flexGrow: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+            
+            {/* Quick Suggestion Pills */}
+            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+              <button onClick={() => handleSendMessage("Hoa tặng sinh nhật bạn gái")} style={{ border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>🎂 Hoa sinh nhật</button>
+              <button onClick={() => handleSendMessage("Hoa tình yêu tặng người yêu")} style={{ border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>❤️ Hoa tình yêu</button>
+              <button onClick={() => handleSendMessage("Hoa đẹp giá rẻ dưới 500k")} style={{ border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>🏷️ Giá dưới 500k</button>
+            </div>
+
             {chatMessages.map((msg, idx) => (
-              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', color: msg.sender === 'user' ? '#fff' : '#1e293b', padding: '8px 12px', borderRadius: '12px', maxWidth: '85%', fontSize: '12px', lineHeight: '1.4' }}>
-                {msg.sender === 'bot' ? (
-                  <ReactMarkdown components={{ p: ({ node, ...props }) => <p style={{ margin: 0 }} {...props} /> }}>
-                    {msg.text}
-                  </ReactMarkdown>
-                ) : (
-                  msg.text
+              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }}>
+                <div style={{ backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', color: msg.sender === 'user' ? '#fff' : '#1e293b', padding: '8px 12px', borderRadius: '12px', fontSize: '12px', lineHeight: '1.4', border: msg.sender === 'bot' ? '1px solid #f1f5f9' : 'none' }}>
+                  {msg.sender === 'bot' ? (
+                    <ReactMarkdown components={{ p: ({ node, ...props }) => <p style={{ margin: 0 }} {...props} /> }}>
+                      {msg.text}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.text
+                  )}
+                </div>
+
+                {/* HIỂN THỊ THẺ HOA TRỰC TIẾP TRONG Ô CHAT */}
+                {msg.suggestedProducts && msg.suggestedProducts.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    {msg.suggestedProducts.map(p => (
+                      <div key={p.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#fff', border: '1px solid #fbcfe8', borderRadius: '10px', padding: '8px', boxShadow: '0 2px 8px rgba(219,39,119,0.05)' }}>
+                        <img src={p.image_url} alt={p.name} style={{ width: '45px', height: '45px', borderRadius: '6px', objectFit: 'cover' }} />
+                        <div style={{ flexGrow: 1 }}>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f172a' }}>{p.name}</div>
+                          <div style={{ fontSize: '11px', color: '#db2777', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</div>
+                        </div>
+                        <button 
+                          onClick={() => addToCart(p)}
+                          style={{ border: 'none', background: '#db2777', color: '#fff', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          + Mua
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
+
               </div>
             ))}
-            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '11px' }}>AI đang suy nghĩ...</div>}
+            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '11px' }}>AI đang tìm mẫu hoa phù hợp...</div>}
           </div>
 
           <div style={{ padding: '8px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '6px' }}>
-            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Nhập câu hỏi..." style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }} />
-            <button onClick={handleSendMessage} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
+            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Hỏi AI chọn hoa hoặc viết lời chúc..." style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }} />
+            <button onClick={() => handleSendMessage()} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
               <Send size={14} />
             </button>
           </div>
@@ -1111,7 +1172,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Integrated VietQR Dynamic Payment</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Interactive AI Flower Consultant</p>
       </footer>
     </div>
   );
