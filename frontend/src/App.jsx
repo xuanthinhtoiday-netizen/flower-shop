@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
@@ -92,6 +92,16 @@ export default function App() {
       fetchAdminOrders();
     }
   }, [currentView, fetchAdminOrders]);
+
+  // Tính toán thống kê Admin
+  const adminStats = useMemo(() => {
+    const totalRevenue = ordersList
+      .filter(o => o.status === 'COMPLETED' || o.status === 'CONFIRMED' || !o.status || o.status === 'PENDING')
+      .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+    const completedCount = ordersList.filter(o => o.status === 'COMPLETED').length;
+    const pendingCount = ordersList.filter(o => o.status === 'PENDING' || !o.status).length;
+    return { totalRevenue, completedCount, pendingCount };
+  }, [ordersList]);
 
   const handleTrackOrder = async (e) => {
     e.preventDefault();
@@ -273,17 +283,17 @@ export default function App() {
 
   const renderStatusBadge = (status) => {
     switch (status) {
-      case 'CONFIRMED': return <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>✅ Đã xác nhận</span>;
-      case 'COMPLETED': return <span style={{ backgroundColor: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>🎉 Hoàn thành</span>;
-      case 'CANCELED': return <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>❌ Đã hủy</span>;
-      default: return <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>🕒 Chờ duyệt</span>;
+      case 'CONFIRMED': return <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bbf7d0' }}>✅ Đã xác nhận</span>;
+      case 'COMPLETED': return <span style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bfdbfe' }}>🎉 Hoàn thành</span>;
+      case 'CANCELED': return <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fecaca' }}>❌ Đã hủy</span>;
+      default: return <span style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fde68a' }}>🕒 Chờ duyệt</span>;
     }
   };
 
   return (
-    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: '#334155' }}>
+    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: currentView === 'admin_dashboard' ? '#0f172a' : '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: currentView === 'admin_dashboard' ? '#f8fafc' : '#334155', transition: 'background-color 0.3s ease' }}>
       
-      {/* KHU VỰC CSS ANIMATIONS CHUYÊN NGHIỆP */}
+      {/* CSS STYLES */}
       <style>{`
         html, body, #root {
           width: 100% !important;
@@ -322,7 +332,6 @@ export default function App() {
           width: 100%;
         }
 
-        /* 1. Animation Thẻ Hoa (Card Hover Zoom & Lift Effect) */
         .product-card {
           background-color: #fff;
           border-radius: 14px;
@@ -352,7 +361,6 @@ export default function App() {
           transform: scale(1.08);
         }
 
-        /* 2. Hiệu ứng Nút Bấm Nhịp Đập (Pulse Button Effect) */
         .pulse-btn {
           animation: pulseGlow 2s infinite;
           transition: all 0.2s ease;
@@ -367,28 +375,37 @@ export default function App() {
           100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
         }
 
-        /* 3. Hiệu ứng trượt xuất hiện Fade-In-Up */
         @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        .animate-fade-in {
-          animation: fadeInUp 0.5s ease-out forwards;
+        .animate-fade-in { animation: fadeInUp 0.5s ease-out forwards; }
+        .category-btn { transition: all 0.2s ease; }
+        .category-btn:hover { transform: translateY(-2px); }
+
+        /* Admin UI Dashboard Cards */
+        .admin-stat-card {
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          border: 1px solid #334155;
+          border-radius: 16px;
+          padding: 20px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+          transition: all 0.3s ease;
+        }
+        .admin-stat-card:hover {
+          transform: translateY(-4px);
+          border-color: #db2777;
         }
 
-        /* 4. Hiệu ứng Nút Danh Mục Hover */
-        .category-btn {
-          transition: all 0.2s ease;
+        .admin-table-row {
+          transition: background-color 0.2s ease;
         }
-        .category-btn:hover {
-          transform: translateY(-2px);
+        .admin-table-row:hover {
+          background-color: #1e293b !important;
         }
 
         .chat-widget {
@@ -423,14 +440,16 @@ export default function App() {
         }
       `}</style>
 
-      {/* Top Banner Thanh Chạy Tin Nhắn */}
-      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-        <Sparkles size={14} className="animate-spin" />
-        <span>🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp chúc mừng miễn phí</span>
-      </div>
+      {/* Top Banner (Khách hàng) */}
+      {currentView !== 'admin_dashboard' && (
+        <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+          <Sparkles size={14} />
+          <span>🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp chúc mừng miễn phí</span>
+        </div>
+      )}
 
-      {/* Header */}
-      <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
+      {/* Header Header chuyển màu theo giao diện */}
+      <header style={{ backgroundColor: currentView === 'admin_dashboard' ? '#1e293b' : '#ffffff', borderBottom: currentView === 'admin_dashboard' ? '1px solid #334155' : 'none', boxShadow: currentView === 'admin_dashboard' ? 'none' : '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
         <div className="main-container">
           <div className="header-inner">
             <div onClick={() => setCurrentView('store')} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#db2777', fontWeight: '800', fontSize: '20px', cursor: 'pointer', flexShrink: 0 }}>
@@ -438,6 +457,9 @@ export default function App() {
                 <Flower2 size={22} color="#db2777" />
               </div>
               <span style={{ background: 'linear-gradient(45deg, #db2777, #9333ea)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BloomArt</span>
+              {currentView === 'admin_dashboard' && (
+                <span style={{ backgroundColor: '#db2777', color: '#fff', fontSize: '10px', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold', marginLeft: '6px' }}>ADMIN CONTROL</span>
+              )}
             </div>
 
             {currentView === 'store' && (
@@ -502,7 +524,6 @@ export default function App() {
       {/* VIEW KHÁCH HÀNG */}
       {currentView === 'store' && (
         <>
-          {/* Hero Banner với Hiệu ứng Fade-In */}
           <section className="animate-fade-in" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '45px 16px', textAlign: 'center', width: '100%' }}>
             <div style={{ width: '100%', margin: '0 auto' }}>
               <span style={{ backgroundColor: '#fff', color: '#db2777', padding: '5px 14px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
@@ -524,7 +545,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Thanh Bộ Lọc Danh Mục Nút Bấm Sinh Động */}
           <div className="main-container animate-fade-in" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
               <button onClick={() => setSelectedCategory('ALL')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>Tất Cả Mẫu Hoa</button>
@@ -548,14 +568,8 @@ export default function App() {
               <div className="product-grid">
                 {filteredProducts.map((item, idx) => (
                   <div key={item.id} className="product-card" style={{ animationDelay: `${idx * 0.08}s` }}>
-                    
                     <div className="product-img-wrapper" style={{ cursor: 'pointer' }} onClick={() => { setSelectedProduct(item); setModalQuantity(1); }}>
-                      <img 
-                        className="product-img"
-                        src={item.image_url || 'https://via.placeholder.com/300'} 
-                        alt={item.name} 
-                        loading="lazy"
-                      />
+                      <img className="product-img" src={item.image_url || 'https://via.placeholder.com/300'} alt={item.name} loading="lazy" />
                       <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px', borderRadius: '50%', color: '#db2777', display: 'flex', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
                         <Eye size={16} />
                       </div>
@@ -571,24 +585,11 @@ export default function App() {
                           {Number(item.price).toLocaleString('vi-VN')} đ
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button 
-                            onClick={() => { setSelectedProduct(item); setModalQuantity(1); }}
-                            className="category-btn"
-                            style={{ flex: 1, border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-                          >
-                            Xem
-                          </button>
-                          <button 
-                            onClick={() => addToCart(item)}
-                            className="category-btn"
-                            style={{ flex: 1.2, backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-                          >
-                            + Mua
-                          </button>
+                          <button onClick={() => { setSelectedProduct(item); setModalQuantity(1); }} className="category-btn" style={{ flex: 1, border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Xem</button>
+                          <button onClick={() => addToCart(item)} className="category-btn" style={{ flex: 1.2, backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>+ Mua</button>
                         </div>
                       </div>
                     </div>
-
                   </div>
                 ))}
               </div>
@@ -597,15 +598,199 @@ export default function App() {
         </>
       )}
 
-      {/* MODAL XEM CHI TIẾT SẢN PHẨM */}
-      {selectedProduct && (
+      {/* VIEW ADMIN DASHBOARD PRO DÙNG TÔNG TỐI HIỆN ĐẠI */}
+      {currentView === 'admin_dashboard' && (
+        <div className="main-container animate-fade-in" style={{ padding: '30px 24px 60px 24px' }}>
+          
+          {/* Admin Header Title */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+            <div>
+              <h1 style={{ fontSize: '26px', color: '#f8fafc', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <LayoutDashboard color="#db2777" size={28} /> Bảng Điều Khiển Quản Trị
+              </h1>
+              <p style={{ color: '#94a3b8', fontSize: '13px', margin: '5px 0 0 0' }}>Theo dõi doanh thu, trạng thái đơn hàng và quản lý kho hoa realtime</p>
+            </div>
+            <button onClick={fetchAdminOrders} className="category-btn" style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #475569', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              🔄 Tải Lại Dữ Liệu
+            </button>
+          </div>
+
+          {/* Metrics Metric Thống Kê Nổi Bật */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            <div className="admin-stat-card">
+              <div style={{ backgroundColor: '#831843', padding: '14px', borderRadius: '12px', display: 'flex', color: '#f472b6' }}>
+                <DollarSign size={26} />
+              </div>
+              <div>
+                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>TỔNG DOANH THU</span>
+                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                  {adminStats.totalRevenue.toLocaleString('vi-VN')} đ
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-stat-card">
+              <div style={{ backgroundColor: '#1e3a8a', padding: '14px', borderRadius: '12px', display: 'flex', color: '#60a5fa' }}>
+                <ShoppingCart size={26} />
+              </div>
+              <div>
+                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>TỔNG ĐƠN HÀNG</span>
+                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                  {ordersList.length} đơn
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-stat-card">
+              <div style={{ backgroundColor: '#065f46', padding: '14px', borderRadius: '12px', display: 'flex', color: '#34d399' }}>
+                <TrendingUp size={26} />
+              </div>
+              <div>
+                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>ĐƠN HOÀN THÀNH</span>
+                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                  {adminStats.completedCount} đơn
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-stat-card">
+              <div style={{ backgroundColor: '#78350f', padding: '14px', borderRadius: '12px', display: 'flex', color: '#fbbf24' }}>
+                <Package size={26} />
+              </div>
+              <div>
+                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>HOA TRONG KHO</span>
+                <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
+                  {products.length} mẫu
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <button 
+              onClick={() => setAdminTab('orders')} 
+              style={{ border: 'none', background: adminTab === 'orders' ? '#db2777' : '#1e293b', color: '#fff', padding: '10px 20px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+            >
+              <ListOrdered size={18} /> Danh Sách Đơn Hàng ({ordersList.length})
+            </button>
+            <button 
+              onClick={() => setAdminTab('products')} 
+              style={{ border: 'none', background: adminTab === 'products' ? '#db2777' : '#1e293b', color: '#fff', padding: '10px 20px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+            >
+              <PackagePlus size={18} /> Quản Lý Kho Hoa ({products.length})
+            </button>
+          </div>
+
+          {/* TAB 1: BẢNG ĐƠN HÀNG DẠNG DARK THEME PRO */}
+          {adminTab === 'orders' && (
+            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', padding: '20px', border: '1px solid #334155', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+              {ordersList.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>Chưa có đơn hàng nào phát sinh 🌸</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8' }}>
+                        <th style={{ padding: '14px 12px' }}>MÃ ĐƠN</th>
+                        <th style={{ padding: '14px 12px' }}>KHÁCH HÀNG</th>
+                        <th style={{ padding: '14px 12px' }}>SĐT</th>
+                        <th style={{ padding: '14px 12px' }}>ĐỊA CHỈ GIAO</th>
+                        <th style={{ padding: '14px 12px' }}>LỜI CHÚC</th>
+                        <th style={{ padding: '14px 12px' }}>TỔNG TIỀN</th>
+                        <th style={{ padding: '14px 12px' }}>TRẠNG THÁI</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ordersList.map((ord) => (
+                        <tr key={ord.id} className="admin-table-row" style={{ borderBottom: '1px solid #334155', color: '#f8fafc' }}>
+                          <td style={{ padding: '14px 12px', fontWeight: 'bold', color: '#f472b6' }}>#{ord.id}</td>
+                          <td style={{ padding: '14px 12px', fontWeight: 'bold' }}>{ord.customer_name}</td>
+                          <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>{ord.customer_phone}</td>
+                          <td style={{ padding: '14px 12px', color: '#cbd5e1', maxWidth: '200px' }}>{ord.delivery_address || ord.address}</td>
+                          <td style={{ padding: '14px 12px', color: '#94a3b8', fontStyle: 'italic', maxWidth: '180px' }}>{ord.card_message || 'Không có'}</td>
+                          <td style={{ padding: '14px 12px', fontWeight: '800', color: '#38bdf8' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</td>
+                          <td style={{ padding: '14px 12px' }}>
+                            <select 
+                              value={ord.status || 'PENDING'} 
+                              onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
+                              style={{ backgroundColor: '#0f172a', color: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #475569', fontSize: '12px', fontWeight: 'bold', outline: 'none', cursor: 'pointer' }}
+                            >
+                              <option value="PENDING">🕒 Chờ duyệt</option>
+                              <option value="CONFIRMED">✅ Đã xác nhận</option>
+                              <option value="COMPLETED">🎉 Hoàn thành</option>
+                              <option value="CANCELED">❌ Hủy đơn</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: QUẢN LÝ KHO HOA */}
+          {adminTab === 'products' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
+              <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '16px', border: '1px solid #334155', height: 'fit-content' }}>
+                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <PackagePlus color="#db2777" size={20} /> Thêm Mẫu Hoa Mới
+                </h3>
+                <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>TÊN BÓ HOA</label>
+                    <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Tên bó hoa..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>GIÁ BÁN (VNĐ)</label>
+                    <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Ví dụ: 500000" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>MÔ TẢ NGẮN</label>
+                    <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Mô tả loài hoa, ý nghĩa..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px', height: '70px' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>LINK HÌNH Ảnh (URL)</label>
+                    <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
+                  </div>
+                  <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', marginTop: '10px' }}>
+                    + Đăng Hoa Lên Cửa Hàng
+                  </button>
+                </form>
+              </div>
+
+              <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '16px', border: '1px solid #334155' }}>
+                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Package color="#db2777" size={20} /> Danh Sách Hoa Trong Kho
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '500px', overflowY: 'auto', marginTop: '16px' }}>
+                  {products.map(p => (
+                    <div key={p.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '10px' }}>
+                      <img src={p.image_url} alt={p.name} loading="lazy" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
+                      <div style={{ flexGrow: 1 }}>
+                        <h4 style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#f8fafc' }}>{p.name}</h4>
+                        <span style={{ fontSize: '12px', color: '#f472b6', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</span>
+                      </div>
+                      <button onClick={() => handleDeleteProduct(p.id)} style={{ border: 'none', background: '#451a03', color: '#f87171', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                        Xóa
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL CHI TIẾT SẢN PHẨM KHÁCH HÀNG */}
+      {selectedProduct && currentView === 'store' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
           <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: '16px', maxWidth: '720px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
             
-            <button 
-              onClick={() => setSelectedProduct(null)} 
-              style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#f1f5f9', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
-            >
+            <button onClick={() => setSelectedProduct(null)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#f1f5f9', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
               <X size={18} />
             </button>
 
@@ -643,26 +828,10 @@ export default function App() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      onClick={() => {
-                        addToCart(selectedProduct, modalQuantity);
-                        setSelectedProduct(null);
-                      }}
-                      className="category-btn"
-                      style={{ flex: 1, backgroundColor: '#fce7f3', color: '#db2777', border: '1px solid #fbcfe8', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
-                    >
+                    <button onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); }} className="category-btn" style={{ flex: 1, backgroundColor: '#fce7f3', color: '#db2777', border: '1px solid #fbcfe8', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
                       + Giỏ Hàng
                     </button>
-                    <button 
-                      onClick={() => {
-                        addToCart(selectedProduct, modalQuantity);
-                        setSelectedProduct(null);
-                        setIsCartOpen(true);
-                        setCheckoutStep('form');
-                      }}
-                      className="pulse-btn"
-                      style={{ flex: 1, backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
-                    >
+                    <button onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); setIsCartOpen(true); setCheckoutStep('form'); }} className="pulse-btn" style={{ flex: 1, backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
                       Mua Ngay
                     </button>
                   </div>
@@ -739,115 +908,6 @@ export default function App() {
               Xác Nhận Đăng Nhập
             </button>
           </form>
-        </div>
-      )}
-
-      {/* VIEW ADMIN DASHBOARD */}
-      {currentView === 'admin_dashboard' && (
-        <div className="main-container animate-fade-in" style={{ margin: '30px 0 50px 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '20px', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <LayoutDashboard color="#db2777" /> Quản Trị Cửa Hàng
-            </h2>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-            <button 
-              onClick={() => setAdminTab('orders')} 
-              style={{ border: 'none', background: adminTab === 'orders' ? '#db2777' : '#f1f5f9', color: adminTab === 'orders' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
-            >
-              <ListOrdered size={16} /> Đơn Hàng ({ordersList.length})
-            </button>
-            <button 
-              onClick={() => setAdminTab('products')} 
-              style={{ border: 'none', background: adminTab === 'products' ? '#db2777' : '#f1f5f9', color: adminTab === 'products' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
-            >
-              <PackagePlus size={16} /> Kho Hoa ({products.length})
-            </button>
-          </div>
-
-          {adminTab === 'orders' && (
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-              {ordersList.length === 0 ? (
-                <p style={{ color: '#94a3b8', fontSize: '13px' }}>Chưa có đơn hàng nào 🌸</p>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px' }}>Mã Đơn</th>
-                        <th style={{ padding: '10px' }}>Khách Hàng</th>
-                        <th style={{ padding: '10px' }}>SĐT</th>
-                        <th style={{ padding: '10px' }}>Địa Chỉ Giao</th>
-                        <th style={{ padding: '10px' }}>Lời Chúc</th>
-                        <th style={{ padding: '10px' }}>Tổng Tiền</th>
-                        <th style={{ padding: '10px' }}>Trạng Thái</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ordersList.map((ord) => (
-                        <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '10px', fontWeight: 'bold' }}>#{ord.id}</td>
-                          <td style={{ padding: '10px' }}>{ord.customer_name}</td>
-                          <td style={{ padding: '10px' }}>{ord.customer_phone}</td>
-                          <td style={{ padding: '10px' }}>{ord.delivery_address || ord.address}</td>
-                          <td style={{ padding: '10px', color: '#64748b' }}>{ord.card_message || 'Không có'}</td>
-                          <td style={{ padding: '10px', fontWeight: 'bold', color: '#db2777' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</td>
-                          <td style={{ padding: '10px' }}>
-                            <select 
-                              value={ord.status || 'PENDING'} 
-                              onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
-                              style={{ padding: '5px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11px', fontWeight: 'bold' }}
-                            >
-                              <option value="PENDING">🕒 Chờ duyệt</option>
-                              <option value="CONFIRMED">✅ Đã xác nhận</option>
-                              <option value="COMPLETED">🎉 Hoàn thành</option>
-                              <option value="CANCELED">❌ Hủy đơn</option>
-                            </select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {adminTab === 'products' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-              <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                <h3 style={{ marginTop: 0, fontSize: '15px', color: '#0f172a' }}>➕ Thêm Mẫu Hoa Mới</h3>
-                <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Tên bó hoa..." style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                  <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Giá bán..." style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                  <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Mô tả ngắn..." style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', height: '55px' }} />
-                  <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="Link ảnh URL..." style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                  <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-                    Tải Hoa Lên
-                  </button>
-                </form>
-              </div>
-
-              <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                <h3 style={{ marginTop: 0, fontSize: '15px', color: '#0f172a' }}>🌸 Kho Hoa Cửa Hàng</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '450px', overflowY: 'auto' }}>
-                  {products.map(p => (
-                    <div key={p.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-                      <img src={p.image_url} alt={p.name} loading="lazy" style={{ width: '45px', height: '45px', borderRadius: '6px', objectFit: 'cover' }} />
-                      <div style={{ flexGrow: 1 }}>
-                        <h4 style={{ margin: '0 0 2px 0', fontSize: '12px' }}>{p.name}</h4>
-                        <span style={{ fontSize: '11px', color: '#db2777', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</span>
-                      </div>
-                      <button onClick={() => handleDeleteProduct(p.id)} style={{ border: 'none', background: '#fee2e2', color: '#ef4444', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
-                        Xóa
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -946,13 +1006,9 @@ export default function App() {
         </div>
       )}
 
-      {/* FLOATING CHAT AI Nút Phát Sáng */}
+      {/* FLOATING CHAT AI */}
       {currentView === 'store' && (
-        <button 
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          className="pulse-btn"
-          style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}
-        >
+        <button onClick={() => setIsChatOpen(!isChatOpen)} className="pulse-btn" style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
         </button>
       )}
@@ -980,14 +1036,7 @@ export default function App() {
           </div>
 
           <div style={{ padding: '8px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '6px' }}>
-            <input 
-              type="text" 
-              value={chatInput} 
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Nhập câu hỏi..." 
-              style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }}
-            />
+            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Nhập câu hỏi..." style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }} />
             <button onClick={handleSendMessage} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
               <Send size={14} />
             </button>
@@ -996,8 +1045,8 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Smooth Interactive UI & Animations</p>
+      <footer style={{ backgroundColor: currentView === 'admin_dashboard' ? '#0f172a' : '#fff', borderTop: currentView === 'admin_dashboard' ? '1px solid #334155' : '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Professional Admin Dashboard Integrated</p>
       </footer>
     </div>
   );
