@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, Truck, Gift, ShieldCheck, Clock, SearchCode } from 'lucide-react';
+import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('store'); // 'store' | 'track_order' | 'admin_login' | 'admin_dashboard'
+  const [currentView, setCurrentView] = useState('store');
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('adminToken') || '');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
@@ -279,17 +279,105 @@ export default function App() {
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', color: '#334155' }}>
       
+      {/* Dynamic Multi-Device Responsive Styles */}
       <style>{`
-        .header-container { display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 12px 20px; gap: 12px; flex-wrap: wrap; }
-        .search-box { flex: 1; min-width: 180px; max-width: 320px; }
-        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
-        .chat-widget { position: fixed; bottom: 90px; right: 20px; width: 360px; height: 500px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px); z-index: 1000; }
-        .cart-drawer { width: 400px; max-width: 100vw; }
-        img { content-visibility: auto; }
+        /* Global Container Căn Giữa Chuẩn */
+        .page-container {
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 0 20px;
+        }
+
+        /* Header Layout */
+        .header-container {
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 20px;
+          gap: 15px;
+          flex-wrap: nowrap;
+        }
+        .search-box {
+          flex: 1;
+          min-width: 180px;
+          max-width: 400px;
+        }
+
+        /* Multi-Device Grid System */
+        .product-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+        }
+
+        /* Chat Widget Default (Desktop/Tablet) */
+        .chat-widget {
+          position: fixed;
+          bottom: 90px;
+          right: 25px;
+          width: 380px;
+          height: 520px;
+          max-width: calc(100vw - 30px);
+          max-height: calc(100vh - 120px);
+          z-index: 1000;
+        }
+
+        /* Cart Drawer Desktop */
+        .cart-drawer {
+          width: 420px;
+          max-width: 100vw;
+        }
+
+        /* 1. Màn hình Laptop nhỏ & Tablet Ngang (769px - 1024px) */
+        @media (max-width: 1024px) {
+          .product-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+          }
+        }
+
+        /* 2. Màn hình Tablet Đứng & iPad Mini (641px - 768px) */
+        @media (max-width: 768px) {
+          .product-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+          }
+          .header-container {
+            flex-wrap: wrap;
+          }
+          .search-box {
+            order: 3;
+            width: 100%;
+            max-width: 100%;
+            min-width: 100%;
+          }
+        }
+
+        /* 3. Màn hình Mobile Di Động & Màn Gập (< 640px) */
         @media (max-width: 640px) {
-          .header-container { padding: 10px 15px; }
-          .search-box { order: 3; width: 100%; max-width: 100%; min-width: 100%; }
-          .chat-widget { bottom: 0; right: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0 !important; }
+          .product-grid {
+            grid-template-columns: repeat(1, 1fr);
+            gap: 15px;
+          }
+          .page-container {
+            padding: 0 12px;
+          }
+          .header-container {
+            padding: 10px 12px;
+          }
+          .btn-text-hide {
+            display: none;
+          }
+          .chat-widget {
+            bottom: 0;
+            right: 0;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            border-radius: 0 !important;
+          }
         }
       `}</style>
 
@@ -298,9 +386,9 @@ export default function App() {
         🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa trước & sau khi giao | 🎁 Tặng thiệp chúc mừng
       </div>
 
-      {/* Header */}
+      {/* Header Responsive */}
       <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div className="header-container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div className="page-container header-container">
           <div onClick={() => setCurrentView('store')} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#db2777', fontWeight: '800', fontSize: '20px', cursor: 'pointer' }}>
             <div style={{ backgroundColor: '#fce7f3', padding: '8px', borderRadius: '10px', display: 'flex' }}>
               <Flower2 size={22} color="#db2777" />
@@ -321,12 +409,12 @@ export default function App() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button 
               onClick={() => setCurrentView(currentView === 'track_order' ? 'store' : 'track_order')}
               style={{ border: '1px solid #fbcfe8', background: currentView === 'track_order' ? '#db2777' : '#fdf2f8', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: currentView === 'track_order' ? '#fff' : '#be185d', fontSize: '13px', fontWeight: 'bold' }}
             >
-              <SearchCode size={16} /> Tra Cứu Đơn
+              <SearchCode size={16} /> <span className="btn-text-hide">Tra Cứu Đơn</span>
             </button>
 
             {currentView === 'store' ? (
@@ -336,7 +424,7 @@ export default function App() {
                   style={{ border: 'none', background: '#fce7f3', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#db2777', fontWeight: '600', fontSize: '13px' }}
                 >
                   <ShoppingBag size={18} />
-                  <span>Giỏ</span>
+                  <span className="btn-text-hide">Giỏ</span>
                   {cart.length > 0 && (
                     <span style={{ backgroundColor: '#ef4444', color: '#fff', borderRadius: '50%', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold' }}>
                       {cart.reduce((a, b) => a + b.quantity, 0)}
@@ -347,7 +435,7 @@ export default function App() {
                   onClick={() => setCurrentView(adminToken ? 'admin_dashboard' : 'admin_login')}
                   style={{ border: '1px solid #cbd5e1', background: '#fff', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}
                 >
-                  <Lock size={15} /> Admin
+                  <Lock size={15} /> <span className="btn-text-hide">Admin</span>
                 </button>
               </>
             ) : (
@@ -355,7 +443,7 @@ export default function App() {
                 onClick={handleAdminLogout}
                 style={{ border: 'none', background: '#fee2e2', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', fontWeight: '600', fontSize: '13px' }}
               >
-                <LogOut size={16} /> Thoát Admin
+                <LogOut size={16} /> <span className="btn-text-hide">Thoát Admin</span>
               </button>
             )}
           </div>
@@ -385,15 +473,17 @@ export default function App() {
             </div>
           </section>
 
-          {/* Thanh Bảng Bộ Lọc Danh Mục Nhanh */}
-          <div style={{ maxWidth: '1100px', margin: '20px auto 0 auto', padding: '0 15px', display: 'flex', gap: '10px', overflowX: 'auto' }}>
-            <button onClick={() => setSelectedCategory('ALL')} style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>Tất Cả Mẫu Hoa</button>
-            <button onClick={() => setSelectedCategory('LOVE')} style={{ border: 'none', background: selectedCategory === 'LOVE' ? '#db2777' : '#fff', color: selectedCategory === 'LOVE' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>❤️ Hoa Tình Yêu</button>
-            <button onClick={() => setSelectedCategory('BIRTHDAY')} style={{ border: 'none', background: selectedCategory === 'BIRTHDAY' ? '#db2777' : '#fff', color: selectedCategory === 'BIRTHDAY' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🎂 Hoa Sinh Nhật</button>
-            <button onClick={() => setSelectedCategory('CHEAP')} style={{ border: 'none', background: selectedCategory === 'CHEAP' ? '#db2777' : '#fff', color: selectedCategory === 'CHEAP' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🏷️ Tiết Kiệm (≤ 500k)</button>
+          {/* Thanh Bộ Lọc Danh Mục Nhanh Responsive */}
+          <div className="page-container" style={{ marginTop: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '5px' }}>
+              <button onClick={() => setSelectedCategory('ALL')} style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>Tất Cả Mẫu Hoa</button>
+              <button onClick={() => setSelectedCategory('LOVE')} style={{ border: 'none', background: selectedCategory === 'LOVE' ? '#db2777' : '#fff', color: selectedCategory === 'LOVE' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>❤️ Hoa Tình Yêu</button>
+              <button onClick={() => setSelectedCategory('BIRTHDAY')} style={{ border: 'none', background: selectedCategory === 'BIRTHDAY' ? '#db2777' : '#fff', color: selectedCategory === 'BIRTHDAY' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🎂 Hoa Sinh Nhật</button>
+              <button onClick={() => setSelectedCategory('CHEAP')} style={{ border: 'none', background: selectedCategory === 'CHEAP' ? '#db2777' : '#fff', color: selectedCategory === 'CHEAP' ? '#fff' : '#475569', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' }}>🏷️ Tiết Kiệm (≤ 500k)</button>
+            </div>
           </div>
 
-          <main style={{ maxWidth: '1100px', margin: '20px auto', padding: '0 15px 50px 15px' }}>
+          <main className="page-container" style={{ margin: '20px auto 50px auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '20px', color: '#1e293b', margin: 0, fontWeight: '700' }}>Danh Sách Sản Phẩm</h2>
               <span style={{ color: '#64748b', fontSize: '13px' }}>{filteredProducts.length} sản phẩm</span>
@@ -452,7 +542,7 @@ export default function App() {
             <input 
               type="text" 
               required
-              placeholder="Nhập SĐT hoặc Mã đơn (vd: 0989767545 hoặc 1)..." 
+              placeholder="Nhập SĐT hoặc Mã đơn (vd: 0989767545)..." 
               value={trackQuery}
               onChange={(e) => setTrackQuery(e.target.value)}
               style={{ flexGrow: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
@@ -462,7 +552,6 @@ export default function App() {
             </button>
           </form>
 
-          {/* Hiển thị danh sách đơn tìm thấy */}
           {trackedOrders.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {trackedOrders.map(ord => (
@@ -479,10 +568,9 @@ export default function App() {
               ))}
             </div>
           ) : (
-            /* Thông báo khi không thấy đơn hoặc chưa tra cứu */
             trackQuery && !isTrackLoading && (
               <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '10px', fontSize: '13px' }}>
-                🌸 Không tìm thấy đơn hàng nào với từ khóa "<strong>{trackQuery}</strong>". Bạn hãy thử tra cứu lại bằng SĐT <strong>0989767545</strong> hoặc mã đơn <strong>1</strong> nhé!
+                🌸 Không tìm thấy đơn hàng nào với từ khóa "<strong>{trackQuery}</strong>".
               </div>
             )
           )}
@@ -512,7 +600,7 @@ export default function App() {
 
       {/* VIEW ADMIN DASHBOARD */}
       {currentView === 'admin_dashboard' && (
-        <div style={{ maxWidth: '1100px', margin: '30px auto', padding: '0 15px 50px 15px' }}>
+        <div className="page-container" style={{ margin: '30px auto 50px auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '22px', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
               <LayoutDashboard color="#db2777" /> Bảng Điều Khiển Quản Trị
@@ -583,7 +671,7 @@ export default function App() {
           )}
 
           {adminTab === 'products' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
               <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                 <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a' }}>➕ Thêm Mẫu Hoa Mới</h3>
                 <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -764,7 +852,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '30px 15px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Powered by Cloudflare Workers & Pages</p>
+        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Compatible with All Devices</p>
       </footer>
     </div>
   );
