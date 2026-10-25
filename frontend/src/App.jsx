@@ -442,7 +442,7 @@ export default function App() {
 
       {/* VIEW TRA CỨU ĐƠN HÀNG */}
       {currentView === 'track_order' && (
-        <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+        <div style={{ maxWidth: '600px', margin: '40px auto', padding: '25px', backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#0f172a', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px', marginTop: 0 }}>
             <SearchCode color="#db2777" /> Tra Cứu Trạng Thái Đơn Hàng
           </h2>
@@ -452,7 +452,7 @@ export default function App() {
             <input 
               type="text" 
               required
-              placeholder="Nhập SĐT hoặc Mã đơn (vd: 0987... hoặc #1)..." 
+              placeholder="Nhập SĐT hoặc Mã đơn (vd: 0989767545 hoặc 1)..." 
               value={trackQuery}
               onChange={(e) => setTrackQuery(e.target.value)}
               style={{ flexGrow: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
@@ -462,7 +462,8 @@ export default function App() {
             </button>
           </form>
 
-          {trackedOrders.length > 0 && (
+          {/* Hiển thị danh sách đơn tìm thấy */}
+          {trackedOrders.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {trackedOrders.map(ord => (
                 <div key={ord.id} style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '15px', backgroundColor: '#f8fafc' }}>
@@ -477,6 +478,13 @@ export default function App() {
                 </div>
               ))}
             </div>
+          ) : (
+            /* Thông báo khi không thấy đơn hoặc chưa tra cứu */
+            trackQuery && !isTrackLoading && (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '10px', fontSize: '13px' }}>
+                🌸 Không tìm thấy đơn hàng nào với từ khóa "<strong>{trackQuery}</strong>". Bạn hãy thử tra cứu lại bằng SĐT <strong>0989767545</strong> hoặc mã đơn <strong>1</strong> nhé!
+              </div>
+            )
           )}
         </div>
       )}
