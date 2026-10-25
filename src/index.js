@@ -67,7 +67,7 @@ export default {
       }
     }
 
-    // 5. API Tra cứu đơn hàng dành cho Khách hàng (Nhập SĐT hoặc Mã đơn)
+    // 5. API Tra cứu đơn hàng dành cho Khách hàng
     if (url.pathname === "/api/orders/track" && request.method === "GET") {
       try {
         const q = url.searchParams.get("query");
@@ -121,7 +121,7 @@ export default {
       }
     }
 
-    // 9. API Chatbot AI (Phiên bản Debug lỗi chi tiết)
+    // 9. API Chatbot AI chuẩn JavaScript
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
         const body = await request.json();
@@ -131,30 +131,16 @@ export default {
         const { results: products } = await env.DB.prepare("SELECT name, price, description FROM products").all();
         const productListText = products.map(p => `- ${p.name}: ${Number(p.price).toLocaleString('vi-VN')} đ (${p.description})`).join("\n");
 
-        const systemPrompt = `Bạn là trợ lý tư vấn hoa tươi thân thiện của shop BloomArt. Các mẫu hoa hiện có:\n${productListText}\nHãy trả lời ngắn gọn, lịch sự.`;
+        const systemPrompt = `Bạn là trợ lý tư vấn hoa tươi thân thiện của shop BloomArt. Các mẫu hoa hiện có:\n${productListText}\nHãy trả lời ngắn gọn, lịch sự, tư vấn mẫu hoa phù hợp cho khách.`;
 
         const GEMINI_API_KEY = env.GEMINI_API_KEY;
 
-        // Kiểm tra xem có nhận được Key không
         if (!GEMINI_API_KEY) {
-          return Response.json({ reply: "⚠️ Lỗi: Biến GEMINI_API_KEY trên Cloudflare đang bị trống hoặc chưa được nhận diện!" }, { headers: corsHeaders });
+          return Response.json({ reply: "⚠️ Lỗi: Biến GEMINI_API_KEY trên Cloudflare chưa được cấu hình!" }, { headers: corsHeaders });
         }
 
-        const apiRes = await fetch(`curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent" \
-  -H 'Content-Type: application/json' \
-  -H 'X-goog-api-key: AQ.Ab8RN6JfryduZij77d5oQ7J1XvoL1SxmBaJ-kXbowoicFfiLVw' \
-  -X POST \
-  -d '{
-    "contents": [
-      {
-        "parts": [
-          {
-            "text": "Explain how AI works in a few words"
-          }
-        ]
-      }
-    ]
-  }'`, {
+        // Gọi API chuẩn bằng fetch JavaScript với URL thuần túy
+        const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json"
@@ -175,9 +161,8 @@ export default {
 
         const responseData = await apiRes.json();
 
-        // Nếu Google trả về lỗi, in thẳng lỗi ra khung chat để chúng ta nhìn thấy
         if (responseData.error) {
-          return Response.json({ reply: `⚠️ Lỗi từ Google API: ${responseData.error.message} (Mã: ${responseData.error.code})` }, { headers: corsHeaders });
+          return Response.json({ reply: `⚠️ Lỗi từ Google API: ${responseData.error.message}` }, { headers: corsHeaders });
         }
 
         if (responseData.candidates && responseData.candidates[0]?.content?.parts[0]?.text) {
@@ -185,12 +170,13 @@ export default {
           return Response.json({ reply: replyText }, { headers: corsHeaders });
         }
 
-        return Response.json({ reply: `⚠️ Phản hồi từ Google không đúng cấu trúc mong đợi.` }, { headers: corsHeaders });
+        return Response.json({ reply: `⚠️ Phản hồi từ Google không đúng cấu trúc.` }, { headers: corsHeaders });
 
       } catch (error) {
-        return Response.json({ reply: `⚠️ Lỗi ngoại lệ Worker: ${error.message}` }, { headers: corsHeaders });
+        return Response.json({ reply: `⚠️ Lỗi hệ thống: ${error.message}` }, { headers: corsHeaders });
       }
     }
+
     return new Response("API Flower Shop OK!", { status: 200, headers: corsHeaders });
   },
 };
