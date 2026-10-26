@@ -1,31 +1,85 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus, CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode, Eye, ShieldCheck, Truck, Clock, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import {
+  ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus,
+  CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode,
+  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = "https://flower-shop-backend.xuanthinhtoiday.workers.dev";
 
+/* ---------- Helpers ---------- */
+const vnd = (n) => `${Number(n || 0).toLocaleString('vi-VN')} đ`;
+
+const store = {
+  get: (k, d = '') => { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* bỏ qua */ } },
+  remove: (k) => { try { localStorage.removeItem(k); } catch { /* bỏ qua */ } },
+};
+
+const FALLBACK_IMG =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='#fce7f3'/><text x='50%' y='52%' font-size='64' text-anchor='middle'>🌸</text></svg>`
+  );
+
+const CATEGORIES = [
+  { key: 'ALL', label: 'Tất cả mẫu hoa' },
+  { key: 'LOVE', label: 'Hoa tình yêu', test: (p) => /hồng|tình yêu|valentine/i.test(p.name) || /tình yêu/i.test(p.description || '') },
+  { key: 'BIRTHDAY', label: 'Hoa sinh nhật', test: (p) => /cầu vồng|hướng dương|sinh nhật/i.test(`${p.name} ${p.description || ''}`) },
+  { key: 'CHEAP', label: 'Tiết kiệm (≤ 500k)', test: (p) => Number(p.price) <= 500000 },
+];
+
+const STATUS = {
+  PENDING: { label: 'Chờ duyệt', cls: 'pending' },
+  CONFIRMED: { label: 'Đã xác nhận', cls: 'confirmed' },
+  COMPLETED: { label: 'Hoàn thành', cls: 'completed' },
+  CANCELED: { label: 'Đã hủy', cls: 'canceled' },
+};
+
+const CHAT_SUGGESTIONS = ['Hoa sinh nhật mẹ', 'Hoa tặng người yêu', 'Hoa dưới 500k', 'Hoa chúc mừng khai trương'];
+
+function Img({ src, alt, className }) {
+  return (
+    <img
+      className={className}
+      src={src || FALLBACK_IMG}
+      alt={alt}
+      loading="lazy"
+      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMG; }}
+    />
+  );
+}
+
+function StatusBadge({ status }) {
+  const s = STATUS[status] || STATUS.PENDING;
+  return <span className={`badge badge-${s.cls}`}>{s.label}</span>;
+}
+
+/* ---------- App ---------- */
 export default function App() {
   const [currentView, setCurrentView] = useState('store');
-  const [adminToken, setAdminToken] = useState(() => localStorage.getItem('adminToken') || '');
+  const [adminToken, setAdminToken] = useState(() => store.get('adminToken'));
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
   const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState([]);
+  const [loadError, setLoadError] = useState(false);
+  const [cart, setCart] = useState(() => {
+    try { return JSON.parse(store.get('bloom_cart', '[]')) || []; } catch { return []; }
+  });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // State Chi Tiết Sản Phẩm (Modal)
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [modalQuantity, setModalQuantity] = useState(1);
 
-  // Tracking State
   const [trackQuery, setTrackQuery] = useState('');
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [isTrackLoading, setIsTrackLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // Checkout State
   const [checkoutStep, setCheckoutStep] = useState('cart');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -34,7 +88,6 @@ export default function App() {
   const [orderSuccessId, setOrderSuccessId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Admin State
   const [adminTab, setAdminTab] = useState('orders');
   const [ordersList, setOrdersList] = useState([]);
   const [newProductName, setNewProductName] = useState('');
@@ -42,82 +95,105 @@ export default function App() {
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductImage, setNewProductImage] = useState('');
 
-  // AI Chat
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'bot', text: 'Xin chào! Bạn cần tư vấn chọn hoa cho dịp nào ạ? 🌸' }
+    { sender: 'bot', text: 'Xin chào! Bạn cần tư vấn chọn hoa cho dịp nào ạ? 🌸' },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef(null);
 
-  const fetchProducts = useCallback(() => {
-    fetch(`${API_URL}/api/products`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  const showToast = useCallback((msg, type = 'ok') => {
+    setToast({ msg, type });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3200);
   }, []);
 
+  /* ----- Dữ liệu ----- */
+  const fetchProducts = useCallback(() => {
+    setLoadError(false);
+    fetch(`${API_URL}/api/products`)
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((data) => { setProducts(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => { setLoadError(true); setLoading(false); });
+  }, []);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  // Lưu giỏ hàng để không mất khi tải lại trang
+  useEffect(() => { store.set('bloom_cart', JSON.stringify(cart)); }, [cart]);
+
+  // Tự cuộn xuống tin nhắn mới nhất
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [chatMessages, isTyping, isChatOpen]);
 
-  // Bộ lọc sản phẩm
+  // Nhấn Esc để đóng cửa sổ phủ
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      setSelectedProduct(null);
+      setIsCartOpen(false);
+      setIsChatOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      const matchSearch = !searchTerm.trim() || 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchCategory = selectedCategory === 'ALL' || 
-        (selectedCategory === 'LOVE' && (p.name.includes('Hồng') || p.name.includes('Tình Yêu'))) ||
-        (selectedCategory === 'BIRTHDAY' && (p.name.includes('Cầu Vồng') || p.name.includes('Hướng Dương'))) ||
-        (selectedCategory === 'CHEAP' && Number(p.price) <= 500000);
-
-      return matchSearch && matchCategory;
+    const q = searchTerm.trim().toLowerCase();
+    const cat = CATEGORIES.find((c) => c.key === selectedCategory);
+    return products.filter((p) => {
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q);
+      const matchCat = !cat?.test || cat.test(p);
+      return matchSearch && matchCat;
     });
   }, [searchTerm, selectedCategory, products]);
 
-  const fetchAdminOrders = useCallback(() => {
-    fetch(`${API_URL}/api/admin/orders`)
-      .then(res => res.json())
-      .then(data => setOrdersList(data))
-      .catch(err => console.error(err));
+  /* ----- Admin ----- */
+  const handleAdminLogout = useCallback(() => {
+    setAdminToken('');
+    store.remove('adminToken');
+    setCurrentView('store');
   }, []);
 
-  useEffect(() => {
-    if (currentView === 'admin_dashboard') {
-      fetchAdminOrders();
+  // Mọi request admin đều gửi kèm token trong header Authorization
+  const adminFetch = useCallback(async (path, options = {}) => {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}`, ...(options.headers || {}) },
+    });
+    if (res.status === 401 || res.status === 403) {
+      handleAdminLogout();
+      showToast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.', 'err');
+      throw new Error('unauthorized');
     }
-  }, [currentView, fetchAdminOrders]);
+    return res;
+  }, [adminToken, handleAdminLogout, showToast]);
 
-  // Tính toán thống kê Admin
+  const fetchAdminOrders = useCallback(() => {
+    adminFetch('/api/admin/orders')
+      .then((res) => res.json())
+      .then((data) => setOrdersList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [adminFetch]);
+
+  useEffect(() => {
+    if (currentView === 'admin_dashboard' && adminToken) fetchAdminOrders();
+  }, [currentView, adminToken, fetchAdminOrders]);
+
   const adminStats = useMemo(() => {
+    // Doanh thu chỉ tính đơn đã xác nhận hoặc hoàn thành (không tính đơn chờ và đơn hủy)
     const totalRevenue = ordersList
-      .filter(o => o.status === 'COMPLETED' || o.status === 'CONFIRMED' || !o.status || o.status === 'PENDING')
+      .filter((o) => o.status === 'CONFIRMED' || o.status === 'COMPLETED')
       .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
-    const completedCount = ordersList.filter(o => o.status === 'COMPLETED').length;
-    const pendingCount = ordersList.filter(o => o.status === 'PENDING' || !o.status).length;
+    const completedCount = ordersList.filter((o) => o.status === 'COMPLETED').length;
+    const pendingCount = ordersList.filter((o) => !o.status || o.status === 'PENDING').length;
     return { totalRevenue, completedCount, pendingCount };
   }, [ordersList]);
-
-  const handleTrackOrder = async (e) => {
-    e.preventDefault();
-    if (!trackQuery.trim()) return;
-
-    setIsTrackLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/orders/track?query=${encodeURIComponent(trackQuery)}`);
-      const data = await res.json();
-      setTrackedOrders(data);
-    } catch {
-      alert("Lỗi tra cứu đơn hàng!");
-    } finally {
-      setIsTrackLoading(false);
-    }
-  };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
@@ -125,111 +201,103 @@ export default function App() {
       const res = await fetch(`${API_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: adminPasswordInput })
+        body: JSON.stringify({ password: adminPasswordInput }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setAdminToken(data.token);
-        localStorage.setItem('adminToken', data.token);
+        store.set('adminToken', data.token);
         setCurrentView('admin_dashboard');
         setAdminPasswordInput('');
       } else {
-        alert(data.message || "Sai mật khẩu Admin!");
+        showToast(data.message || 'Sai mật khẩu Admin!', 'err');
       }
     } catch {
-      alert("Lỗi kết nối!");
+      showToast('Không kết nối được máy chủ.', 'err');
     }
-  };
-
-  const handleAdminLogout = () => {
-    setAdminToken('');
-    localStorage.removeItem('adminToken');
-    setCurrentView('store');
   };
 
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/orders/status`, {
+      const res = await adminFetch('/api/admin/orders/status', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, status: newStatus })
+        body: JSON.stringify({ order_id: orderId, status: newStatus }),
       });
-      if (res.ok) fetchAdminOrders();
-    } catch {
-      alert("Lỗi cập nhật!");
-    }
+      if (res.ok) { fetchAdminOrders(); showToast('Đã cập nhật trạng thái đơn.'); }
+    } catch { /* đã xử lý trong adminFetch */ }
   };
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!newProductName || !newProductPrice) return;
-
+    if (!newProductName.trim() || !newProductPrice) return;
     try {
-      const res = await fetch(`${API_URL}/api/products`, {
+      const res = await adminFetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newProductName,
+          name: newProductName.trim(),
           price: Number(newProductPrice),
-          description: newProductDesc,
-          image_url: newProductImage || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=500'
-        })
+          description: newProductDesc.trim(),
+          image_url: newProductImage.trim() || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=500',
+        }),
       });
-
       if (res.ok) {
-        alert("Thêm hoa thành công!");
-        setNewProductName('');
-        setNewProductPrice('');
-        setNewProductDesc('');
-        setNewProductImage('');
+        showToast('Đã đăng hoa lên cửa hàng.');
+        setNewProductName(''); setNewProductPrice(''); setNewProductDesc(''); setNewProductImage('');
         fetchProducts();
+      } else {
+        showToast('Không thêm được sản phẩm.', 'err');
       }
-    } catch {
-      alert("Lỗi thêm sản phẩm!");
-    }
+    } catch { /* đã xử lý */ }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm("Xóa hoa này khỏi cửa hàng?")) return;
+    if (!window.confirm('Xóa hoa này khỏi cửa hàng?')) return;
     try {
-      const res = await fetch(`${API_URL}/api/products/${id}`, { method: 'DELETE' });
-      if (res.ok) fetchProducts();
+      const res = await adminFetch(`/api/products/${id}`, { method: 'DELETE' });
+      if (res.ok) { fetchProducts(); showToast('Đã xóa sản phẩm.'); }
+    } catch { /* đã xử lý */ }
+  };
+
+  /* ----- Khách hàng ----- */
+  const handleTrackOrder = async (e) => {
+    e.preventDefault();
+    if (!trackQuery.trim()) return;
+    setIsTrackLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/orders/track?query=${encodeURIComponent(trackQuery.trim())}`);
+      const data = await res.json();
+      setTrackedOrders(Array.isArray(data) ? data : []);
+      setHasSearched(true);
     } catch {
-      alert("Lỗi xóa sản phẩm!");
+      showToast('Không tra cứu được đơn hàng, thử lại sau.', 'err');
+    } finally {
+      setIsTrackLoading(false);
     }
   };
 
   const addToCart = useCallback((product, qty = 1) => {
-    setCart(prevCart => {
-      const existing = prevCart.find(item => item.id === product.id);
-      if (existing) {
-        return prevCart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + qty } : item);
-      }
-      return [...prevCart, { ...product, quantity: qty }];
+    setCart((prev) => {
+      const existing = prev.find((i) => i.id === product.id);
+      if (existing) return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + qty } : i));
+      return [...prev, { ...product, quantity: qty }];
     });
-  }, []);
+    showToast(`Đã thêm "${product.name}" vào giỏ.`);
+  }, [showToast]);
 
   const updateQuantity = useCallback((id, delta) => {
-    setCart(prevCart => prevCart.map(item => {
-      if (item.id === id) {
-        const newQty = item.quantity + delta;
-        return newQty > 0 ? { ...item, quantity: newQty } : item;
-      }
-      return item;
-    }));
+    setCart((prev) => prev.map((i) => (i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i)));
   }, []);
 
-  const removeFromCart = useCallback((id) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== id));
-  }, []);
+  const removeFromCart = useCallback((id) => setCart((prev) => prev.filter((i) => i.id !== id)), []);
 
-  const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
-  }, [cart]);
+  const cartTotal = useMemo(() => cart.reduce((s, i) => s + Number(i.price) * i.quantity, 0), [cart]);
+  const cartCount = useMemo(() => cart.reduce((s, i) => s + i.quantity, 0), [cart]);
 
   const handleCheckout = async (e) => {
     e.preventDefault();
-    if (!customerName || !customerPhone || !deliveryAddress) return;
+    if (cart.length === 0) return showToast('Giỏ hàng đang trống.', 'err');
+    const phone = customerPhone.replace(/\s+/g, '');
+    if (!/^(0|\+84)\d{9,10}$/.test(phone)) return showToast('Số điện thoại chưa đúng định dạng.', 'err');
 
     setIsSubmitting(true);
     try {
@@ -237,359 +305,166 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          delivery_address: deliveryAddress,
-          card_message: cardMessage,
-          total_price: cartTotal
-        })
+          customer_name: customerName.trim(),
+          customer_phone: phone,
+          delivery_address: deliveryAddress.trim(),
+          card_message: cardMessage.trim(),
+          total_price: cartTotal,
+        }),
       });
-
       const data = await res.json();
       if (res.ok) {
         setOrderSuccessId(data.orderId);
         setCheckoutStep('success');
         setCart([]);
+        setCustomerName(''); setCustomerPhone(''); setDeliveryAddress(''); setCardMessage('');
+      } else {
+        showToast(data.error || 'Đặt hàng chưa thành công, thử lại nhé.', 'err');
       }
     } catch {
-      alert("Có lỗi đặt hàng!");
+      showToast('Không kết nối được máy chủ, thử lại sau.', 'err');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
-
-    const userMsg = chatInput;
-    setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
+  const sendChat = async (text) => {
+    const msg = (text ?? chatInput).trim();
+    if (!msg || isTyping) return;
+    setChatMessages((prev) => [...prev, { sender: 'user', text: msg }]);
     setChatInput('');
     setIsTyping(true);
-
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ message: msg }),
       });
       const data = await res.json();
-      setChatMessages(prev => [...prev, { sender: 'bot', text: data.reply || 'Cửa hàng đã nhận thông tin!' }]);
+      setChatMessages((prev) => [...prev, { sender: 'bot', text: data.reply || 'Shop đã nhận được tin nhắn của bạn.' }]);
     } catch {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Có lỗi kết nối với AI!' }]);
+      setChatMessages((prev) => [...prev, { sender: 'bot', text: 'Mình chưa kết nối được, bạn thử lại sau ít phút nhé.' }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const renderStatusBadge = (status) => {
-    switch (status) {
-      case 'CONFIRMED': return <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bbf7d0' }}>✅ Đã xác nhận</span>;
-      case 'COMPLETED': return <span style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #bfdbfe' }}>🎉 Hoàn thành</span>;
-      case 'CANCELED': return <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fecaca' }}>❌ Đã hủy</span>;
-      default: return <span style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #fde68a' }}>🕒 Chờ duyệt</span>;
-    }
-  };
+  const openProduct = (item) => { setSelectedProduct(item); setModalQuantity(1); };
+  const view = currentView === 'admin_dashboard' && !adminToken ? 'admin_login' : currentView;
 
   return (
-    <div style={{ fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#fff5f7', minHeight: '100vh', width: '100%', margin: 0, padding: 0, color: '#334155' }}>
-      
-      {/* CSS STYLES */}
-      <style>{`
-        html, body, #root {
-          width: 100% !important;
-          max-width: 100% !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow-x: hidden;
-        }
-        * { box-sizing: border-box; }
-        
-        .main-container {
-          width: 100% !important;
-          max-width: 100% !important;
-          margin: 0 !important;
-          padding: 0 24px !important;
-        }
+    <div className="bloom">
+      <style>{CSS}</style>
 
-        .header-inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 12px 0;
-          width: 100%;
-        }
-
-        .search-box {
-          flex: 1;
-          max-width: 500px;
-        }
-
-        .product-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-          gap: 20px;
-          width: 100%;
-        }
-
-        .product-card {
-          background-color: #fff;
-          border-radius: 14px;
-          overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-          border: 1px solid #f1f5f9;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          animation: fadeInUp 0.6s ease-out forwards;
-        }
-        .product-card:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 12px 28px rgba(219, 39, 119, 0.15);
-          border-color: #fbcfe8;
-        }
-
-        .product-img-wrapper {
-          overflow: hidden;
-          position: relative;
-        }
-        .product-img {
-          width: 100%;
-          height: 210px;
-          object-fit: cover;
-          transition: transform 0.5s ease;
-        }
-        .product-card:hover .product-img {
-          transform: scale(1.08);
-        }
-
-        .pulse-btn {
-          animation: pulseGlow 2s infinite;
-          transition: all 0.2s ease;
-        }
-        .pulse-btn:hover {
-          transform: scale(1.05);
-        }
-
-        @keyframes pulseGlow {
-          0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.5); }
-          70% { box-shadow: 0 0 0 12px rgba(219, 39, 119, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
-        }
-
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .animate-fade-in { animation: fadeInUp 0.5s ease-out forwards; }
-        .category-btn { transition: all 0.2s ease; }
-        .category-btn:hover { transform: translateY(-2px); }
-
-        /* Admin UI Pink-Bright Theme */
-        .admin-stat-card-light {
-          background: #ffffff;
-          border-radius: 18px;
-          padding: 22px;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          box-shadow: 0 8px 20px rgba(219, 39, 119, 0.06);
-          border: 1px solid #fce7f3;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .admin-stat-card-light:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 14px 30px rgba(219, 39, 119, 0.15);
-          border-color: #f472b6;
-        }
-
-        .admin-table-row-light {
-          transition: background-color 0.2s ease;
-        }
-        .admin-table-row-light:hover {
-          background-color: #fff1f2 !important;
-        }
-
-        .chat-widget {
-          position: fixed;
-          bottom: 90px;
-          right: 20px;
-          width: 360px;
-          height: 500px;
-          max-width: calc(100vw - 32px);
-          max-height: calc(100vh - 120px);
-          z-index: 1000;
-          animation: fadeInUp 0.3s ease-out;
-        }
-        .cart-drawer {
-          width: 400px;
-          max-width: 100vw;
-          animation: slideInRight 0.3s ease-out;
-        }
-
-        @keyframes slideInRight {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-
-        @media (max-width: 768px) {
-          .header-inner { flex-wrap: wrap; }
-          .search-box { order: 3; width: 100%; max-width: 100%; }
-          .main-container { padding: 0 12px !important; }
-        }
-        @media (max-width: 480px) {
-          .btn-text-hide { display: none; }
-        }
-      `}</style>
-
-      {/* Top Banner */}
-      <div style={{ backgroundColor: '#be185d', color: '#fff', padding: '8px 16px', fontSize: '12px', textAlign: 'center', fontWeight: '500', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+      <div className="topbar">
         <Sparkles size={14} />
-        <span>🚚 Giao hoa hỏa tốc 2H | 📸 Chụp hình hoa thực tế | 🎁 Tặng thiệp chúc mừng miễn phí</span>
+        <span>Giao hoa hỏa tốc 2 giờ · Chụp ảnh hoa thực tế · Tặng thiệp miễn phí</span>
       </div>
 
-      {/* Header */}
-      <header style={{ backgroundColor: '#ffffff', boxShadow: '0 2px 10px rgba(219, 39, 119, 0.05)', position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
-        <div className="main-container">
-          <div className="header-inner">
-            <div onClick={() => setCurrentView('store')} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#db2777', fontWeight: '800', fontSize: '20px', cursor: 'pointer', flexShrink: 0 }}>
-              <div style={{ backgroundColor: '#fce7f3', padding: '8px', borderRadius: '10px', display: 'flex' }}>
-                <Flower2 size={22} color="#db2777" />
-              </div>
-              <span style={{ background: 'linear-gradient(45deg, #db2777, #9333ea)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BloomArt</span>
-              {currentView === 'admin_dashboard' && (
-                <span style={{ backgroundColor: '#be185d', color: '#fff', fontSize: '10px', padding: '3px 10px', borderRadius: '12px', fontWeight: 'bold', marginLeft: '6px' }}>ADMIN PANEL</span>
+      <header className="header">
+        <div className="container header-inner">
+          <button className="brand" onClick={() => setCurrentView('store')} aria-label="Về trang chủ BloomArt">
+            <span className="brand-icon"><Flower2 size={22} /></span>
+            <span className="brand-name">BloomArt</span>
+            {view === 'admin_dashboard' && <span className="admin-tag">Quản trị</span>}
+          </button>
+
+          {view === 'store' && (
+            <label className="search-box">
+              <Search size={16} />
+              <input type="text" placeholder="Tìm tên hoa..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              {searchTerm && (
+                <button type="button" className="icon-btn" onClick={() => setSearchTerm('')} aria-label="Xóa tìm kiếm"><X size={14} /></button>
               )}
-            </div>
+            </label>
+          )}
 
-            {currentView === 'store' && (
-              <div className="search-box" style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f8fafc', padding: '8px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', transition: 'all 0.3s' }}>
-                <Search size={16} color="#94a3b8" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm tên hoa..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ border: 'none', backgroundColor: 'transparent', outline: 'none', marginLeft: '8px', width: '100%', fontSize: '13px' }}
-                />
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-              <button 
-                onClick={() => setCurrentView(currentView === 'track_order' ? 'store' : 'track_order')}
-                className="category-btn"
-                style={{ border: '1px solid #fbcfe8', background: currentView === 'track_order' ? '#db2777' : '#fdf2f8', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: currentView === 'track_order' ? '#fff' : '#be185d', fontSize: '13px', fontWeight: 'bold' }}
-              >
-                <SearchCode size={16} /> <span className="btn-text-hide">Tra Cứu Đơn</span>
-              </button>
-
-              {currentView === 'store' ? (
-                <>
-                  <button 
-                    onClick={() => { setIsCartOpen(true); setCheckoutStep('cart'); }}
-                    className="category-btn"
-                    style={{ border: 'none', background: '#fce7f3', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#db2777', fontWeight: '600', fontSize: '13px' }}
-                  >
-                    <ShoppingBag size={18} />
-                    <span className="btn-text-hide">Giỏ</span>
-                    {cart.length > 0 && (
-                      <span style={{ backgroundColor: '#ef4444', color: '#fff', borderRadius: '50%', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold' }}>
-                        {cart.reduce((a, b) => a + b.quantity, 0)}
-                      </span>
-                    )}
-                  </button>
-                  <button 
-                    onClick={() => setCurrentView(adminToken ? 'admin_dashboard' : 'admin_login')}
-                    className="category-btn"
-                    style={{ border: '1px solid #cbd5e1', background: '#fff', padding: '8px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}
-                  >
-                    <Lock size={15} /> <span className="btn-text-hide">Admin</span>
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={handleAdminLogout}
-                  className="category-btn"
-                  style={{ border: 'none', background: '#fee2e2', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', fontWeight: '600', fontSize: '13px' }}
-                >
-                  <LogOut size={16} /> <span className="btn-text-hide">Thoát Admin</span>
+          <nav className="header-actions">
+            <button className={`pill ${view === 'track_order' ? 'pill-active' : ''}`} onClick={() => setCurrentView(view === 'track_order' ? 'store' : 'track_order')}>
+              <SearchCode size={16} /> <span className="hide-sm">Tra cứu đơn</span>
+            </button>
+            {view === 'admin_dashboard' ? (
+              <button className="pill pill-danger" onClick={handleAdminLogout}><LogOut size={16} /> <span className="hide-sm">Thoát</span></button>
+            ) : (
+              <>
+                <button className="pill pill-cart" onClick={() => { setIsCartOpen(true); setCheckoutStep('cart'); setCurrentView('store'); }}>
+                  <ShoppingBag size={18} /> <span className="hide-sm">Giỏ hàng</span>
+                  {cartCount > 0 && <span className="count">{cartCount}</span>}
                 </button>
-              )}
-            </div>
-          </div>
+                <button className="pill pill-ghost" onClick={() => setCurrentView(adminToken ? 'admin_dashboard' : 'admin_login')}>
+                  <Lock size={15} /> <span className="hide-sm">Admin</span>
+                </button>
+              </>
+            )}
+          </nav>
         </div>
       </header>
 
-      {/* VIEW KHÁCH HÀNG */}
-      {currentView === 'store' && (
+      {/* ======== CỬA HÀNG ======== */}
+      {view === 'store' && (
         <>
-          <section className="animate-fade-in" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', padding: '45px 16px', textAlign: 'center', width: '100%' }}>
-            <div style={{ width: '100%', margin: '0 auto' }}>
-              <span style={{ backgroundColor: '#fff', color: '#db2777', padding: '5px 14px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <Sparkles size={14} color="#db2777" /> SHOP HOA TƯƠI ONLINE 2026
-              </span>
-              <h1 style={{ color: '#831843', fontSize: 'clamp(24px, 4.5vw, 38px)', fontWeight: '800', margin: '14px 0 8px 0', lineHeight: '1.2' }}>
-                Trao Gửi Cảm Xúc Qua Nhành Hoa Tươi 
-              </h1>
-              <p style={{ color: '#9d174d', fontSize: 'clamp(13px, 2.5vw, 15px)', marginBottom: '22px' }}>
-                Đặt hoa nhanh chóng - Trợ lý AI tư vấn mẫu hoa phù hợp theo từng dịp
-              </p>
-              <button 
-                onClick={() => setIsChatOpen(true)}
-                className="pulse-btn"
-                style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px 26px', borderRadius: '25px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-              >
-                <MessageSquare size={18} /> Tư Vấn Hoa AI 24/7
-              </button>
+          <section className="hero">
+            <div className="container hero-inner">
+              <p className="hero-kicker"><Sparkles size={14} /> Shop hoa tươi online 2026</p>
+              <h1>Trao gửi cảm xúc qua từng nhành hoa tươi</h1>
+              <p className="hero-sub">Đặt hoa nhanh chóng, nhờ trợ lý AI gợi ý mẫu hoa hợp từng dịp.</p>
+              <div className="hero-actions">
+                <button className="btn btn-primary btn-lg" onClick={() => setIsChatOpen(true)}>
+                  <MessageSquare size={18} /> Hỏi trợ lý chọn hoa
+                </button>
+                <a className="btn btn-light btn-lg" href="#san-pham">Xem mẫu hoa</a>
+              </div>
             </div>
           </section>
 
-          <div className="main-container animate-fade-in" style={{ marginTop: '20px' }}>
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
-              <button onClick={() => setSelectedCategory('ALL')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'ALL' ? '#db2777' : '#fff', color: selectedCategory === 'ALL' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>Tất Cả Mẫu Hoa</button>
-              <button onClick={() => setSelectedCategory('LOVE')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'LOVE' ? '#db2777' : '#fff', color: selectedCategory === 'LOVE' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>❤️ Hoa Tình Yêu</button>
-              <button onClick={() => setSelectedCategory('BIRTHDAY')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'BIRTHDAY' ? '#db2777' : '#fff', color: selectedCategory === 'BIRTHDAY' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>🎂 Hoa Sinh Nhật</button>
-              <button onClick={() => setSelectedCategory('CHEAP')} className="category-btn" style={{ border: 'none', background: selectedCategory === 'CHEAP' ? '#db2777' : '#fff', color: selectedCategory === 'CHEAP' ? '#fff' : '#475569', padding: '9px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>🏷️ Tiết Kiệm (≤ 500k)</button>
+          <div className="container">
+            <div className="chips" role="tablist" aria-label="Lọc theo dịp">
+              {CATEGORIES.map((c) => (
+                <button key={c.key} role="tab" aria-selected={selectedCategory === c.key} className={`chip ${selectedCategory === c.key ? 'chip-active' : ''}`} onClick={() => setSelectedCategory(c.key)}>
+                  {c.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <main className="main-container" style={{ margin: '20px 0 60px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '18px', color: '#1e293b', margin: 0, fontWeight: '700' }}>Danh Sách Sản Phẩm</h2>
-              <span style={{ color: '#64748b', fontSize: '13px' }}>{filteredProducts.length} sản phẩm</span>
+          <main className="container section" id="san-pham">
+            <div className="section-head">
+              <h2>Danh sách sản phẩm</h2>
+              <span className="muted">{filteredProducts.length} mẫu hoa</span>
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#db2777' }}>
-                <p>Đang tải hoa tươi...</p>
+              <div className="product-grid">
+                {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" />)}
+              </div>
+            ) : loadError ? (
+              <div className="empty">
+                <p>Chưa tải được danh sách hoa. Bạn kiểm tra mạng rồi thử lại nhé.</p>
+                <button className="btn btn-primary" onClick={() => { setLoading(true); fetchProducts(); }}><RefreshCw size={15} /> Tải lại</button>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="empty">
+                <p>Không có mẫu hoa nào khớp với bộ lọc hiện tại.</p>
+                <button className="btn btn-light" onClick={() => { setSearchTerm(''); setSelectedCategory('ALL'); }}>Xóa bộ lọc</button>
               </div>
             ) : (
               <div className="product-grid">
-                {filteredProducts.map((item, idx) => (
-                  <div key={item.id} className="product-card" style={{ animationDelay: `${idx * 0.08}s` }}>
-                    <div className="product-img-wrapper" style={{ cursor: 'pointer' }} onClick={() => { setSelectedProduct(item); setModalQuantity(1); }}>
-                      <img className="product-img" src={item.image_url || 'https://via.placeholder.com/300'} alt={item.name} loading="lazy" />
-                      <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px', borderRadius: '50%', color: '#db2777', display: 'flex', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
-                        <Eye size={16} />
+                {filteredProducts.map((item) => (
+                  <article key={item.id} className="product-card">
+                    <button className="product-img-wrap" onClick={() => openProduct(item)} aria-label={`Xem chi tiết ${item.name}`}>
+                      <Img className="product-img" src={item.image_url} alt={item.name} />
+                      <span className="eye"><Eye size={16} /></span>
+                    </button>
+                    <div className="product-body">
+                      <h3 title={item.name}>{item.name}</h3>
+                      <p className="clamp-2">{item.description}</p>
+                      <div className="price">{vnd(item.price)}</div>
+                      <div className="card-actions">
+                        <button className="btn btn-light btn-sm" onClick={() => openProduct(item)}>Xem</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => addToCart(item)}><Plus size={14} /> Mua</button>
                       </div>
                     </div>
-
-                    <div style={{ padding: '14px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div onClick={() => { setSelectedProduct(item); setModalQuantity(1); }} style={{ cursor: 'pointer' }}>
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>{item.name}</h3>
-                        <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 12px 0', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
-                      </div>
-                      <div>
-                        <div style={{ color: '#db2777', fontWeight: '800', fontSize: '17px', marginBottom: '10px' }}>
-                          {Number(item.price).toLocaleString('vi-VN')} đ
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => { setSelectedProduct(item); setModalQuantity(1); }} className="category-btn" style={{ flex: 1, border: '1px solid #fbcfe8', background: '#fdf2f8', color: '#be185d', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Xem</button>
-                          <button onClick={() => addToCart(item)} className="category-btn" style={{ flex: 1.2, backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>+ Mua</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}
@@ -597,138 +472,51 @@ export default function App() {
         </>
       )}
 
-      {/* VIEW ADMIN DASHBOARD - PHONG CÁCH PINK LUXURY ĐẸP MẮT */}
-      {currentView === 'admin_dashboard' && (
-        <div className="main-container animate-fade-in" style={{ padding: '30px 24px 60px 24px' }}>
-          
-          {/* Admin Hero Header */}
-          <div style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', borderRadius: '20px', padding: '24px 28px', marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', boxShadow: '0 8px 20px rgba(219, 39, 119, 0.08)' }}>
+      {/* ======== ADMIN ======== */}
+      {view === 'admin_dashboard' && (
+        <div className="container section">
+          <div className="admin-hero">
             <div>
-              <span style={{ backgroundColor: '#fff', color: '#be185d', padding: '4px 12px', borderRadius: '15px', fontSize: '12px', fontWeight: '800' }}>
-                🌸 BLOOMART MANAGEMENT
-              </span>
-              <h1 style={{ fontSize: '26px', color: '#831843', margin: '8px 0 4px 0', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <LayoutDashboard color="#be185d" size={28} /> Bảng Điều Khiển Quản Trị
-              </h1>
-              <p style={{ color: '#9d174d', fontSize: '13px', margin: 0 }}>Quản lý doanh thu, danh sách đơn hàng và kho hoa tươi realtime</p>
+              <h1><LayoutDashboard size={26} /> Bảng điều khiển quản trị</h1>
+              <p>Theo dõi doanh thu, đơn hàng và kho hoa của BloomArt.</p>
             </div>
-
-            <button 
-              onClick={fetchAdminOrders} 
-              className="category-btn"
-              style={{ backgroundColor: '#fff', color: '#be185d', border: '1px solid #fbcfe8', padding: '10px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-            >
-              <RefreshCw size={16} /> Tải Lại Dữ Liệu
-            </button>
+            <button className="btn btn-light" onClick={fetchAdminOrders}><RefreshCw size={16} /> Tải lại dữ liệu</button>
           </div>
 
-          {/* Cards Thống Kê Sáng Sủa Đẳng Cấp */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-            <div className="admin-stat-card-light">
-              <div style={{ backgroundColor: '#fce7f3', padding: '14px', borderRadius: '14px', display: 'flex', color: '#db2777' }}>
-                <DollarSign size={26} />
-              </div>
-              <div>
-                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>TỔNG DOANH THU</span>
-                <div style={{ color: '#be185d', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
-                  {adminStats.totalRevenue.toLocaleString('vi-VN')} đ
-                </div>
-              </div>
-            </div>
-
-            <div className="admin-stat-card-light">
-              <div style={{ backgroundColor: '#e0f2fe', padding: '14px', borderRadius: '14px', display: 'flex', color: '#0284c7' }}>
-                <ShoppingCart size={26} />
-              </div>
-              <div>
-                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>TỔNG ĐƠN HÀNG</span>
-                <div style={{ color: '#0369a1', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
-                  {ordersList.length} đơn
-                </div>
-              </div>
-            </div>
-
-            <div className="admin-stat-card-light">
-              <div style={{ backgroundColor: '#dcfce7', padding: '14px', borderRadius: '14px', display: 'flex', color: '#16a34a' }}>
-                <TrendingUp size={26} />
-              </div>
-              <div>
-                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>ĐƠN HOÀN THÀNH</span>
-                <div style={{ color: '#15803d', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
-                  {adminStats.completedCount} đơn
-                </div>
-              </div>
-            </div>
-
-            <div className="admin-stat-card-light">
-              <div style={{ backgroundColor: '#fef3c7', padding: '14px', borderRadius: '14px', display: 'flex', color: '#d97706' }}>
-                <Package size={26} />
-              </div>
-              <div>
-                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '700' }}>MẪU HOA TRONG KHO</span>
-                <div style={{ color: '#b45309', fontSize: '22px', fontWeight: '800', marginTop: '2px' }}>
-                  {products.length} mẫu
-                </div>
-              </div>
-            </div>
+          <div className="stats">
+            <div className="stat"><span className="stat-icon s-pink"><DollarSign size={24} /></span><div><small>Doanh thu (đã xác nhận)</small><strong>{vnd(adminStats.totalRevenue)}</strong></div></div>
+            <div className="stat"><span className="stat-icon s-blue"><ShoppingCart size={24} /></span><div><small>Tổng đơn hàng</small><strong>{ordersList.length} đơn</strong></div></div>
+            <div className="stat"><span className="stat-icon s-amber"><Package size={24} /></span><div><small>Đơn chờ duyệt</small><strong>{adminStats.pendingCount} đơn</strong></div></div>
+            <div className="stat"><span className="stat-icon s-green"><TrendingUp size={24} /></span><div><small>Đơn hoàn thành</small><strong>{adminStats.completedCount} đơn</strong></div></div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px' }}>
-            <button 
-              onClick={() => setAdminTab('orders')} 
-              className="category-btn"
-              style={{ border: 'none', background: adminTab === 'orders' ? '#db2777' : '#fff', color: adminTab === 'orders' ? '#fff' : '#475569', padding: '10px 22px', borderRadius: '25px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}
-            >
-              <ListOrdered size={18} /> Quản Lý Đơn Hàng ({ordersList.length})
-            </button>
-            <button 
-              onClick={() => setAdminTab('products')} 
-              className="category-btn"
-              style={{ border: 'none', background: adminTab === 'products' ? '#db2777' : '#fff', color: adminTab === 'products' ? '#fff' : '#475569', padding: '10px 22px', borderRadius: '25px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}
-            >
-              <PackagePlus size={18} /> Quản Lý Kho Hoa ({products.length})
-            </button>
+          <div className="tabs">
+            <button className={`chip ${adminTab === 'orders' ? 'chip-active' : ''}`} onClick={() => setAdminTab('orders')}><ListOrdered size={16} /> Đơn hàng ({ordersList.length})</button>
+            <button className={`chip ${adminTab === 'products' ? 'chip-active' : ''}`} onClick={() => setAdminTab('products')}><PackagePlus size={16} /> Kho hoa ({products.length})</button>
           </div>
 
-          {/* TAB 1: BẢNG ĐƠN HÀNG SÁNG VÀ SẮC NÉT */}
           {adminTab === 'orders' && (
-            <div style={{ backgroundColor: '#fff', borderRadius: '18px', padding: '20px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)' }}>
+            <div className="panel">
               {ordersList.length === 0 ? (
-                <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>Chưa có đơn hàng nào phát sinh 🌸</p>
+                <p className="empty-text">Chưa có đơn hàng nào.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <div className="table-wrap">
+                  <table>
                     <thead>
-                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
-                        <th style={{ padding: '14px 12px' }}>MÃ ĐƠN</th>
-                        <th style={{ padding: '14px 12px' }}>KHÁCH HÀNG</th>
-                        <th style={{ padding: '14px 12px' }}>SĐT</th>
-                        <th style={{ padding: '14px 12px' }}>ĐỊA CHỈ GIAO</th>
-                        <th style={{ padding: '14px 12px' }}>LỜI CHÚC</th>
-                        <th style={{ padding: '14px 12px' }}>TỔNG TIỀN</th>
-                        <th style={{ padding: '14px 12px' }}>TRẠNG THÁI</th>
-                      </tr>
+                      <tr><th>Mã đơn</th><th>Khách hàng</th><th>Số điện thoại</th><th>Địa chỉ giao</th><th>Lời chúc</th><th>Tổng tiền</th><th>Trạng thái</th></tr>
                     </thead>
                     <tbody>
-                      {ordersList.map((ord) => (
-                        <tr key={ord.id} className="admin-table-row-light" style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-                          <td style={{ padding: '14px 12px', fontWeight: '800', color: '#be185d' }}>#{ord.id}</td>
-                          <td style={{ padding: '14px 12px', fontWeight: 'bold' }}>{ord.customer_name}</td>
-                          <td style={{ padding: '14px 12px', color: '#475569' }}>{ord.customer_phone}</td>
-                          <td style={{ padding: '14px 12px', color: '#475569', maxWidth: '200px' }}>{ord.delivery_address || ord.address}</td>
-                          <td style={{ padding: '14px 12px', color: '#64748b', fontStyle: 'italic', maxWidth: '180px' }}>{ord.card_message || 'Không có'}</td>
-                          <td style={{ padding: '14px 12px', fontWeight: '800', color: '#db2777' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</td>
-                          <td style={{ padding: '14px 12px' }}>
-                            <select 
-                              value={ord.status || 'PENDING'} 
-                              onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
-                              style={{ backgroundColor: '#fff', color: '#0f172a', padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold', outline: 'none', cursor: 'pointer' }}
-                            >
-                              <option value="PENDING">🕒 Chờ duyệt</option>
-                              <option value="CONFIRMED">✅ Đã xác nhận</option>
-                              <option value="COMPLETED">🎉 Hoàn thành</option>
-                              <option value="CANCELED">❌ Hủy đơn</option>
+                      {ordersList.map((o) => (
+                        <tr key={o.id}>
+                          <td className="t-id">#{o.id}</td>
+                          <td><strong>{o.customer_name}</strong></td>
+                          <td>{o.customer_phone}</td>
+                          <td className="t-wrap">{o.delivery_address || o.address}</td>
+                          <td className="t-wrap muted">{o.card_message || 'Không có'}</td>
+                          <td className="t-money">{vnd(o.total_price)}</td>
+                          <td>
+                            <select value={o.status || 'PENDING'} onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)} aria-label={`Trạng thái đơn ${o.id}`}>
+                              {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                             </select>
                           </td>
                         </tr>
@@ -740,327 +528,418 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: QUẢN LÝ KHO HOA */}
           {adminTab === 'products' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-              
-              {/* Form Thêm Mẫu Hoa Mới */}
-              <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)', height: 'fit-content' }}>
-                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
-                  <PackagePlus color="#db2777" size={20} /> Thêm Mẫu Hoa Mới
-                </h3>
-                <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>TÊN BÓ HOA</label>
-                    <input type="text" required value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="Nhập tên bó hoa..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>GIÁ BÁN (VNĐ)</label>
-                    <input type="number" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} placeholder="Ví dụ: 500000" style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>MÔ TẢ NGẮN</label>
-                    <textarea value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} placeholder="Mô tả loại hoa, ý nghĩa..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px', height: '70px' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>LINK HÌNH ẢNH (URL)</label>
-                    <input type="url" value={newProductImage} onChange={e => setNewProductImage(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13px', outline: 'none', marginTop: '4px' }} />
-                  </div>
-                  <button type="submit" className="pulse-btn" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', marginTop: '10px' }}>
-                    + Đăng Hoa Lên Cửa Hàng
-                  </button>
+            <div className="admin-grid">
+              <div className="panel">
+                <h3 className="panel-title"><PackagePlus size={20} /> Thêm mẫu hoa mới</h3>
+                <form onSubmit={handleAddProduct} className="form">
+                  <label>Tên bó hoa<input type="text" required value={newProductName} onChange={(e) => setNewProductName(e.target.value)} placeholder="Ví dụ: Bó hoa hồng pastel" /></label>
+                  <label>Giá bán (VNĐ)<input type="number" min="0" required value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} placeholder="500000" /></label>
+                  <label>Mô tả ngắn<textarea value={newProductDesc} onChange={(e) => setNewProductDesc(e.target.value)} placeholder="Loại hoa, ý nghĩa, dịp phù hợp..." /></label>
+                  <label>Link hình ảnh<input type="url" value={newProductImage} onChange={(e) => setNewProductImage(e.target.value)} placeholder="https://..." /></label>
+                  {newProductImage && <Img className="preview" src={newProductImage} alt="Xem trước" />}
+                  <button type="submit" className="btn btn-primary"><Plus size={16} /> Đăng hoa lên cửa hàng</button>
                 </form>
               </div>
 
-              {/* Danh Sách Mẫu Hoa Trong Kho */}
-              <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', border: '1px solid #f1f5f9', boxShadow: '0 6px 20px rgba(0,0,0,0.03)' }}>
-                <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
-                  <Package color="#db2777" size={20} /> Danh Sách Hoa Trong Kho
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '500px', overflowY: 'auto', marginTop: '16px' }}>
-                  {products.map(p => (
-                    <div key={p.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px' }}>
-                      <img src={p.image_url} alt={p.name} loading="lazy" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
-                      <div style={{ flexGrow: 1 }}>
-                        <h4 style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#0f172a', fontWeight: 'bold' }}>{p.name}</h4>
-                        <span style={{ fontSize: '12px', color: '#db2777', fontWeight: 'bold' }}>{Number(p.price).toLocaleString('vi-VN')} đ</span>
-                      </div>
-                      <button onClick={() => handleDeleteProduct(p.id)} className="category-btn" style={{ border: 'none', background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                        Xóa
-                      </button>
+              <div className="panel">
+                <h3 className="panel-title"><Package size={20} /> Hoa trong kho</h3>
+                <div className="stock-list">
+                  {products.map((p) => (
+                    <div key={p.id} className="stock-item">
+                      <Img className="stock-img" src={p.image_url} alt={p.name} />
+                      <div className="grow"><h4>{p.name}</h4><span className="price-sm">{vnd(p.price)}</span></div>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProduct(p.id)}><Trash2 size={14} /> Xóa</button>
                     </div>
                   ))}
                 </div>
               </div>
-
             </div>
           )}
         </div>
       )}
 
-      {/* MODAL CHI TIẾT SẢN PHẨM KHÁCH HÀNG */}
-      {selectedProduct && currentView === 'store' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
-          <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: '16px', maxWidth: '720px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            
-            <button onClick={() => setSelectedProduct(null)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#f1f5f9', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-              <X size={18} />
-            </button>
+      {/* ======== TRA CỨU ĐƠN ======== */}
+      {view === 'track_order' && (
+        <div className="card-narrow">
+          <h2 className="panel-title"><SearchCode size={22} /> Tra cứu đơn hàng</h2>
+          <p className="muted">Nhập số điện thoại hoặc mã đơn để xem tiến độ giao hoa.</p>
+          <form onSubmit={handleTrackOrder} className="track-form">
+            <input type="text" required placeholder="Số điện thoại hoặc mã đơn" value={trackQuery} onChange={(e) => setTrackQuery(e.target.value)} />
+            <button type="submit" className="btn btn-primary" disabled={isTrackLoading}>{isTrackLoading ? 'Đang tìm...' : 'Tra cứu'}</button>
+          </form>
 
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <img src={selectedProduct.image_url} alt={selectedProduct.name} style={{ flex: '1 1 260px', width: '100%', maxHeight: '320px', objectFit: 'cover', borderRadius: '12px' }} />
-
-              <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <span style={{ backgroundColor: '#fce7f3', color: '#db2777', padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold' }}>
-                    Hoa Tươi Chọn Lọc 🌸
-                  </span>
-                  <h2 style={{ fontSize: '20px', color: '#0f172a', margin: '8px 0', fontWeight: '800' }}>{selectedProduct.name}</h2>
-                  <div style={{ fontSize: '22px', color: '#db2777', fontWeight: '800', marginBottom: '12px' }}>
-                    {Number(selectedProduct.price).toLocaleString('vi-VN')} đ
-                  </div>
-
-                  <p style={{ color: '#475569', fontSize: '13px', lineHeight: '1.5', marginBottom: '15px' }}>
-                    {selectedProduct.description}
-                  </p>
-
-                  <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#475569', marginBottom: '15px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Truck size={15} color="#db2777" /> Giao hỏa tốc 2 giờ</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={15} color="#db2777" /> Gửi ảnh hoa duyệt trước khi giao</div>
-                  </div>
+          {trackedOrders.length > 0 && (
+            <div className="track-list">
+              {trackedOrders.map((o) => (
+                <div key={o.id} className="track-item">
+                  <div className="track-top"><strong>Mã đơn #{o.id}</strong><StatusBadge status={o.status} /></div>
+                  <div className="muted">Khách hàng: <strong>{o.customer_name}</strong> ({o.customer_phone})</div>
+                  <div className="muted">Tổng tiền: <strong className="price-sm">{vnd(o.total_price)}</strong></div>
                 </div>
+              ))}
+            </div>
+          )}
+          {hasSearched && !isTrackLoading && trackedOrders.length === 0 && (
+            <p className="empty-text">Không tìm thấy đơn nào với “{trackQuery}”. Bạn kiểm tra lại số điện thoại hoặc mã đơn nhé.</p>
+          )}
+        </div>
+      )}
 
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Số lượng:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '3px 8px' }}>
-                      <button onClick={() => setModalQuantity(q => Math.max(1, q - 1))} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><Minus size={13} /></button>
-                      <span style={{ fontSize: '13px', fontWeight: 'bold', minWidth: '18px', textAlign: 'center' }}>{modalQuantity}</span>
-                      <button onClick={() => setModalQuantity(q => q + 1)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><Plus size={13} /></button>
-                    </div>
-                  </div>
+      {/* ======== ĐĂNG NHẬP ADMIN ======== */}
+      {view === 'admin_login' && (
+        <div className="card-narrow login">
+          <Lock size={34} className="login-icon" />
+          <h2>Đăng nhập quản trị</h2>
+          <form onSubmit={handleAdminLogin} className="form">
+            <input type="password" required autoFocus placeholder="Mật khẩu admin" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} />
+            <button type="submit" className="btn btn-primary">Đăng nhập</button>
+          </form>
+        </div>
+      )}
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); }} className="category-btn" style={{ flex: 1, backgroundColor: '#fce7f3', color: '#db2777', border: '1px solid #fbcfe8', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-                      + Giỏ Hàng
-                    </button>
-                    <button onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); setIsCartOpen(true); setCheckoutStep('form'); }} className="pulse-btn" style={{ flex: 1, backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-                      Mua Ngay
-                    </button>
-                  </div>
+      {/* ======== MODAL CHI TIẾT ======== */}
+      {selectedProduct && view === 'store' && (
+        <div className="overlay center" onClick={() => setSelectedProduct(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={selectedProduct.name} onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedProduct(null)} aria-label="Đóng"><X size={18} /></button>
+            <Img className="modal-img" src={selectedProduct.image_url} alt={selectedProduct.name} />
+            <div className="modal-info">
+              <h2>{selectedProduct.name}</h2>
+              <div className="price price-lg">{vnd(selectedProduct.price)}</div>
+              <p className="modal-desc">{selectedProduct.description}</p>
+              <ul className="perks">
+                <li><Truck size={16} /> Giao hỏa tốc 2 giờ</li>
+                <li><ShieldCheck size={16} /> Gửi ảnh hoa để bạn duyệt trước khi giao</li>
+              </ul>
+              <div className="qty-row">
+                <span>Số lượng</span>
+                <div className="qty">
+                  <button onClick={() => setModalQuantity((q) => Math.max(1, q - 1))} aria-label="Giảm"><Minus size={14} /></button>
+                  <span>{modalQuantity}</span>
+                  <button onClick={() => setModalQuantity((q) => q + 1)} aria-label="Tăng"><Plus size={14} /></button>
                 </div>
               </div>
+              <div className="card-actions">
+                <button className="btn btn-light" onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); }}>Thêm vào giỏ</button>
+                <button className="btn btn-primary" onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); setIsCartOpen(true); setCheckoutStep('form'); }}>Mua ngay</button>
+              </div>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* VIEW TRA CỨU ĐƠN HÀNG */}
-      {currentView === 'track_order' && (
-        <div className="animate-fade-in" style={{ maxWidth: '580px', margin: '40px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0 }}>
-            <SearchCode color="#db2777" /> Tra Cứu Trạng Thái Đơn Hàng
-          </h2>
-          <p style={{ color: '#64748b', fontSize: '13px' }}>Nhập Số điện thoại hoặc Mã đơn hàng để kiểm tra tiến độ giao hoa</p>
-          
-          <form onSubmit={handleTrackOrder} style={{ display: 'flex', gap: '8px', margin: '16px 0' }}>
-            <input 
-              type="text" 
-              required
-              placeholder="Nhập SĐT hoặc Mã đơn (vd: 0989767545)..." 
-              value={trackQuery}
-              onChange={(e) => setTrackQuery(e.target.value)}
-              style={{ flexGrow: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
-            />
-            <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-              {isTrackLoading ? 'Đang tìm...' : 'Tra Cứu'}
-            </button>
-          </form>
-
-          {trackedOrders.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {trackedOrders.map(ord => (
-                <div key={ord.id} style={{ border: '1px solid #f1f5f9', borderRadius: '10px', padding: '14px', backgroundColor: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '13px' }}>Mã đơn: #{ord.id}</span>
-                    {renderStatusBadge(ord.status)}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div>Khách hàng: <strong>{ord.customer_name}</strong> ({ord.customer_phone})</div>
-                    <div>Tổng tiền: <strong style={{ color: '#db2777' }}>{Number(ord.total_price).toLocaleString('vi-VN')} đ</strong></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            trackQuery && !isTrackLoading && (
-              <div style={{ textAlign: 'center', padding: '16px', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '8px', fontSize: '13px' }}>
-                🌸 Không tìm thấy đơn hàng nào với từ khóa "<strong>{trackQuery}</strong>".
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {/* VIEW ADMIN LOGIN */}
-      {currentView === 'admin_login' && (
-        <div className="animate-fade-in" style={{ maxWidth: '380px', margin: '70px auto', padding: '25px', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-          <Lock size={36} color="#db2777" style={{ marginBottom: '12px' }} />
-          <h2 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '18px' }}>Đăng Nhập Admin</h2>
-          <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input 
-              type="password" 
-              required
-              placeholder="Nhập mật khẩu Admin..." 
-              value={adminPasswordInput}
-              onChange={(e) => setAdminPasswordInput(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', fontSize: '13px' }}
-            />
-            <button type="submit" style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-              Xác Nhận Đăng Nhập
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* DRAWER GIỎ HÀNG */}
-      {isCartOpen && currentView === 'store' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'flex-end' }}>
-          <div className="cart-drawer" style={{ backgroundColor: '#fff', height: '100%', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      {/* ======== GIỎ HÀNG ======== */}
+      {isCartOpen && view === 'store' && (
+        <div className="overlay right" onClick={() => setIsCartOpen(false)}>
+          <aside className="drawer" role="dialog" aria-modal="true" aria-label="Giỏ hàng" onClick={(e) => e.stopPropagation()}>
             {checkoutStep === 'cart' && (
               <>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                    <h3 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px' }}>
-                      <ShoppingBag color="#db2777" size={20} /> Giỏ Hàng Của Bạn
-                    </h3>
-                    <button onClick={() => setIsCartOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><X size={20} /></button>
-                  </div>
-
-                  {cart.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: '#94a3b8', margin: '40px 0', fontSize: '13px' }}>Giỏ hàng đang trống 🌸</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '60vh', overflowY: 'auto' }}>
-                      {cart.map((item) => (
-                        <div key={item.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', borderBottom: '1px solid #f8fafc', paddingBottom: '10px' }}>
-                          <img src={item.image_url} alt={item.name} loading="lazy" style={{ width: '50px', height: '50px', borderRadius: '6px', objectFit: 'cover' }} />
-                          <div style={{ flexGrow: 1 }}>
-                            <h4 style={{ margin: '0 0 2px 0', fontSize: '12px' }}>{item.name}</h4>
-                            <span style={{ fontSize: '12px', color: '#db2777', fontWeight: 'bold' }}>{Number(item.price).toLocaleString('vi-VN')} đ</span>
-                          </div>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '2px 6px' }}>
-                            <button onClick={() => updateQuantity(item.id, -1)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}><Minus size={13} /></button>
-                            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, 1)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}><Plus size={13} /></button>
-                          </div>
-
-                          <button onClick={() => removeFromCart(item.id)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}>
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="drawer-head">
+                  <h3><ShoppingBag size={20} /> Giỏ hàng của bạn</h3>
+                  <button className="icon-btn" onClick={() => setIsCartOpen(false)} aria-label="Đóng giỏ hàng"><X size={20} /></button>
                 </div>
-
-                {cart.length > 0 && (
-                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontWeight: 'bold', fontSize: '14px' }}>
-                      <span>Tổng tiền:</span>
-                      <span style={{ color: '#db2777' }}>{cartTotal.toLocaleString('vi-VN')} đ</span>
+                <div className="drawer-body">
+                  {cart.length === 0 ? (
+                    <p className="empty-text">Giỏ hàng đang trống. Chọn vài nhành hoa bạn thích nhé 🌸</p>
+                  ) : cart.map((item) => (
+                    <div key={item.id} className="cart-item">
+                      <Img className="stock-img" src={item.image_url} alt={item.name} />
+                      <div className="grow"><h4>{item.name}</h4><span className="price-sm">{vnd(item.price)}</span></div>
+                      <div className="qty qty-sm">
+                        <button onClick={() => updateQuantity(item.id, -1)} aria-label="Giảm"><Minus size={13} /></button>
+                        <span>{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, 1)} aria-label="Tăng"><Plus size={13} /></button>
+                      </div>
+                      <button className="icon-btn danger" onClick={() => removeFromCart(item.id)} aria-label="Xóa khỏi giỏ"><Trash2 size={16} /></button>
                     </div>
-                    <button onClick={() => setCheckoutStep('form')} style={{ width: '100%', backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '11px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-                      Tiếp Tục Đặt Hàng
-                    </button>
+                  ))}
+                </div>
+                {cart.length > 0 && (
+                  <div className="drawer-foot">
+                    <div className="total"><span>Tổng tiền</span><strong>{vnd(cartTotal)}</strong></div>
+                    <button className="btn btn-primary btn-block" onClick={() => setCheckoutStep('form')}>Tiếp tục đặt hàng</button>
                   </div>
                 )}
               </>
             )}
 
             {checkoutStep === 'form' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: '#0f172a', fontSize: '15px' }}>📝 Thông Tin Giao Hoa</h3>
-                  <button onClick={() => setCheckoutStep('cart')} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer', fontSize: '12px' }}>Quay lại</button>
+              <>
+                <div className="drawer-head">
+                  <h3>Thông tin giao hoa</h3>
+                  <button className="link-btn" onClick={() => setCheckoutStep('cart')}>Quay lại giỏ</button>
                 </div>
-
-                <form onSubmit={handleCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Tên người nhận *" style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                  <input type="tel" required value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Số điện thoại *" style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                  <textarea required value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} placeholder="Địa chỉ giao hoa *" style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', height: '55px' }} />
-                  <textarea value={cardMessage} onChange={e => setCardMessage(e.target.value)} placeholder="Lời chúc thiệp (Tùy chọn)..." style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', height: '55px' }} />
-
-                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 'bold', fontSize: '13px' }}>
-                      <span>Tổng thanh toán:</span>
-                      <span style={{ color: '#db2777' }}>{cartTotal.toLocaleString('vi-VN')} đ</span>
-                    </div>
-                    <button type="submit" disabled={isSubmitting} style={{ width: '100%', backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '11px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-                      {isSubmitting ? 'Đang gửi...' : 'Xác Nhận Đặt Hàng'}
-                    </button>
-                  </div>
+                <form onSubmit={handleCheckout} className="drawer-body form">
+                  <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Tên người nhận *" autoComplete="name" />
+                  <input type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Số điện thoại *" autoComplete="tel" />
+                  <textarea required value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Địa chỉ giao hoa *" />
+                  <textarea value={cardMessage} onChange={(e) => setCardMessage(e.target.value)} placeholder="Lời chúc trên thiệp (không bắt buộc)" />
+                  <div className="total"><span>Tổng thanh toán</span><strong>{vnd(cartTotal)}</strong></div>
+                  <button type="submit" className="btn btn-primary btn-block" disabled={isSubmitting}>{isSubmitting ? 'Đang gửi...' : 'Xác nhận đặt hàng'}</button>
                 </form>
-              </div>
+              </>
             )}
 
             {checkoutStep === 'success' && (
-              <div style={{ textAlign: 'center', padding: '25px 10px' }}>
-                <CheckCircle2 color="#22c55e" size={54} style={{ margin: '0 auto 12px auto' }} />
-                <h3 style={{ color: '#0f172a', margin: '0 0 8px 0', fontSize: '16px' }}>Đặt Hàng Thành Công!</h3>
-                <p style={{ color: '#64748b', fontSize: '12px' }}>Mã đơn hàng của bạn là: <strong>#{orderSuccessId}</strong></p>
-                <button onClick={() => setIsCartOpen(false)} style={{ marginTop: '16px', backgroundColor: '#db2777', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>
-                  Tiếp Tục Mua Sắm
-                </button>
+              <div className="success">
+                <CheckCircle2 size={56} />
+                <h3>Đặt hàng thành công!</h3>
+                <p className="muted">Mã đơn của bạn là <strong>#{orderSuccessId}</strong>. Hãy lưu lại để tra cứu tiến độ giao hoa.</p>
+                <button className="btn btn-primary" onClick={() => setIsCartOpen(false)}>Tiếp tục mua sắm</button>
               </div>
             )}
-          </div>
+          </aside>
         </div>
       )}
 
-      {/* FLOATING CHAT AI */}
-      {currentView === 'store' && (
-        <button onClick={() => setIsChatOpen(!isChatOpen)} className="pulse-btn" style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '50%', width: '56px', height: '56px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+      {/* ======== CHAT AI ======== */}
+      {view === 'store' && (
+        <button className={`fab ${isChatOpen ? '' : 'fab-pulse'}`} onClick={() => setIsChatOpen((o) => !o)} aria-label={isChatOpen ? 'Đóng trợ lý' : 'Mở trợ lý tư vấn hoa'}>
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
         </button>
       )}
 
-      {isChatOpen && currentView === 'store' && (
-        <div className="chat-widget" style={{ backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
-          <div style={{ backgroundColor: '#db2777', color: '#fff', padding: '12px 16px', fontWeight: 'bold', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Trợ Lý Tư Vấn Hoa AI</span>
-            <button onClick={() => setIsChatOpen(false)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+      {isChatOpen && view === 'store' && (
+        <section className="chat" aria-label="Trợ lý tư vấn hoa">
+          <div className="chat-head">
+            <span><Sparkles size={16} /> Trợ lý tư vấn hoa</span>
+            <button className="icon-btn light" onClick={() => setIsChatOpen(false)} aria-label="Đóng"><X size={18} /></button>
           </div>
-          
-          <div style={{ flexGrow: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
-            {chatMessages.map((msg, idx) => (
-              <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#db2777' : '#f8fafc', color: msg.sender === 'user' ? '#fff' : '#1e293b', padding: '8px 12px', borderRadius: '12px', maxWidth: '85%', fontSize: '12px', lineHeight: '1.4' }}>
-                {msg.sender === 'bot' ? (
-                  <ReactMarkdown components={{ p: ({ node, ...props }) => <p style={{ margin: 0 }} {...props} /> }}>
-                    {msg.text}
-                  </ReactMarkdown>
-                ) : (
-                  msg.text
-                )}
+          <div className="chat-body">
+            {chatMessages.map((m, i) => (
+              <div key={i} className={`msg msg-${m.sender}`}>
+                {m.sender === 'bot' ? <ReactMarkdown>{m.text}</ReactMarkdown> : m.text}
               </div>
             ))}
-            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#94a3b8', fontSize: '11px' }}>AI đang suy nghĩ...</div>}
+            {chatMessages.length === 1 && (
+              <div className="suggest">
+                {CHAT_SUGGESTIONS.map((s) => <button key={s} onClick={() => sendChat(s)}>{s}</button>)}
+              </div>
+            )}
+            {isTyping && <div className="msg msg-bot typing"><i /><i /><i /></div>}
+            <div ref={chatEndRef} />
           </div>
-
-          <div style={{ padding: '8px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '6px' }}>
-            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Nhập câu hỏi..." style={{ flexGrow: 1, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none' }} />
-            <button onClick={handleSendMessage} style={{ backgroundColor: '#db2777', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer' }}>
-              <Send size={14} />
-            </button>
+          <div className="chat-input">
+            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} placeholder="Nhập câu hỏi..." maxLength={500} />
+            <button className="send" onClick={() => sendChat()} disabled={isTyping || !chatInput.trim()} aria-label="Gửi"><Send size={16} /></button>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Footer */}
-      <footer style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', width: '100%' }}>
-        <p style={{ margin: 0 }}>© 2026 BloomArt Flower Shop - Bright Pink Modern Admin UI</p>
-      </footer>
+      {toast && <div className={`toast toast-${toast.type}`} role="status">{toast.msg}</div>}
+
+      <footer className="footer">© 2026 BloomArt · Hoa tươi giao tận nơi</footer>
     </div>
   );
 }
+
+/* ---------- CSS ---------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+:root {
+  --rose-900:#831843; --rose-700:#be185d; --rose-600:#db2777; --rose-200:#fbcfe8; --rose-100:#fce7f3; --rose-50:#fff5f7;
+  --ink:#1f1a1d; --muted:#6b6168; --line:#f0e4ea; --white:#fff;
+}
+html, body, #root { margin:0; padding:0; width:100%; max-width:100%; overflow-x:hidden; }
+* { box-sizing:border-box; }
+.bloom { font-family:'Be Vietnam Pro',system-ui,sans-serif; background:var(--rose-50); color:var(--ink); min-height:100vh; line-height:1.5; }
+.bloom h1, .bloom h2 { font-family:'Playfair Display',Georgia,serif; letter-spacing:-.01em; }
+.bloom button, .bloom input, .bloom textarea, .bloom select { font-family:inherit; font-size:14px; }
+.bloom button { cursor:pointer; }
+.bloom :focus-visible { outline:3px solid var(--rose-600); outline-offset:2px; }
+.container { width:100%; max-width:1280px; margin:0 auto; padding:0 24px; }
+.section { padding-top:24px; padding-bottom:64px; }
+.muted { color:var(--muted); font-size:13px; }
+.grow { flex:1; min-width:0; }
+
+.topbar { background:var(--rose-700); color:#fff; font-size:12px; padding:8px 16px; display:flex; gap:8px; justify-content:center; align-items:center; text-align:center; }
+.header { background:#fff; position:sticky; top:0; z-index:100; border-bottom:1px solid var(--line); }
+.header-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:12px; padding-bottom:12px; }
+.brand { display:flex; align-items:center; gap:10px; background:none; border:0; padding:0; color:var(--rose-600); flex-shrink:0; }
+.brand-icon { background:var(--rose-100); padding:8px; border-radius:12px; display:flex; }
+.brand-name { font-family:'Playfair Display',serif; font-weight:700; font-size:22px; color:var(--rose-700); }
+.admin-tag { background:var(--rose-700); color:#fff; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; }
+.search-box { flex:1; max-width:460px; display:flex; align-items:center; gap:8px; background:#faf6f8; border:1px solid var(--line); padding:9px 14px; border-radius:999px; color:var(--muted); }
+.search-box:focus-within { border-color:var(--rose-600); background:#fff; }
+.search-box input { flex:1; border:0; background:transparent; outline:none; min-width:0; }
+.header-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+.icon-btn { border:0; background:none; display:flex; padding:4px; color:inherit; border-radius:6px; }
+.icon-btn.danger { color:#dc2626; } .icon-btn.light { color:#fff; }
+.link-btn { border:0; background:none; color:var(--muted); font-size:13px; text-decoration:underline; }
+
+.pill { display:flex; align-items:center; gap:6px; border:1px solid var(--rose-200); background:#fff; color:var(--rose-700); padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; }
+.pill:hover { background:var(--rose-50); }
+.pill-active { background:var(--rose-600); color:#fff; border-color:var(--rose-600); }
+.pill-cart { background:var(--rose-100); border-color:var(--rose-100); }
+.pill-ghost { color:var(--muted); border-color:#e2dbe0; }
+.pill-danger { background:#fee2e2; border-color:#fee2e2; color:#dc2626; }
+.count { background:#ef4444; color:#fff; border-radius:999px; padding:1px 7px; font-size:11px; font-weight:700; }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid transparent; border-radius:10px; padding:10px 18px; font-weight:600; transition:background .15s, transform .15s; text-decoration:none; }
+.btn:disabled { opacity:.55; cursor:not-allowed; }
+.btn:active:not(:disabled) { transform:scale(.98); }
+.btn-primary { background:var(--rose-600); color:#fff; } .btn-primary:hover:not(:disabled) { background:var(--rose-700); }
+.btn-light { background:#fff; color:var(--rose-700); border-color:var(--rose-200); } .btn-light:hover { background:var(--rose-50); }
+.btn-danger { background:#fee2e2; color:#dc2626; } .btn-danger:hover { background:#fecaca; }
+.btn-sm { padding:8px 12px; font-size:13px; } .btn-lg { padding:13px 26px; font-size:15px; border-radius:999px; } .btn-block { width:100%; }
+
+.hero { background:linear-gradient(160deg,#fde4ef 0%,#fbcfe8 100%); padding:56px 0 52px; }
+.hero-inner { text-align:center; max-width:760px; }
+.hero-kicker { display:inline-flex; align-items:center; gap:6px; background:#fff; color:var(--rose-700); padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:600; margin:0 0 16px; }
+.hero h1 { color:var(--rose-900); font-size:clamp(30px,5vw,50px); line-height:1.15; margin:0 0 14px; }
+.hero-sub { color:#9d174d; font-size:clamp(14px,2.4vw,17px); margin:0 0 26px; }
+.hero-actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+
+.chips, .tabs { display:flex; gap:10px; overflow-x:auto; padding:20px 0 6px; scrollbar-width:none; }
+.tabs { padding:0 0 18px; margin-bottom:6px; }
+.chip { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); background:#fff; color:var(--muted); padding:9px 18px; border-radius:999px; font-weight:600; font-size:13px; white-space:nowrap; }
+.chip:hover { border-color:var(--rose-200); color:var(--rose-700); }
+.chip-active, .chip-active:hover { background:var(--rose-600); border-color:var(--rose-600); color:#fff; }
+
+.section-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; }
+.section-head h2 { margin:0; font-size:24px; }
+.product-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:22px; }
+.product-card { background:#fff; border-radius:16px; overflow:hidden; border:1px solid var(--line); display:flex; flex-direction:column; transition:transform .25s, box-shadow .25s, border-color .25s; }
+.product-card:hover { transform:translateY(-5px); box-shadow:0 14px 30px rgba(219,39,119,.14); border-color:var(--rose-200); }
+.product-img-wrap { position:relative; display:block; width:100%; padding:0; border:0; background:var(--rose-100); overflow:hidden; aspect-ratio:4/4.2; }
+.product-img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s; }
+.product-card:hover .product-img { transform:scale(1.05); }
+.eye { position:absolute; top:10px; right:10px; background:rgba(255,255,255,.92); color:var(--rose-600); padding:7px; border-radius:50%; display:flex; }
+.product-body { padding:14px 16px 16px; display:flex; flex-direction:column; gap:6px; flex:1; }
+.product-body h3 { margin:0; font-size:15.5px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:42px; }
+.clamp-2 { margin:0; color:var(--muted); font-size:12.5px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:38px; }
+.price { color:var(--rose-600); font-weight:700; font-size:18px; margin-top:auto; padding-top:6px; }
+.price-lg { font-size:26px; margin:6px 0 12px; padding:0; }
+.price-sm { color:var(--rose-600); font-weight:700; font-size:13px; }
+.card-actions { display:flex; gap:8px; margin-top:8px; }
+.card-actions .btn { flex:1; }
+
+.skeleton { height:380px; border-radius:16px; background:linear-gradient(90deg,#f9eef3 25%,#fdf6f9 50%,#f9eef3 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+@keyframes shimmer { to { background-position:-200% 0; } }
+.empty { text-align:center; padding:48px 16px; background:#fff; border:1px dashed var(--rose-200); border-radius:16px; display:flex; flex-direction:column; gap:14px; align-items:center; color:var(--muted); }
+.empty p { margin:0; } .empty-text { text-align:center; color:var(--muted); padding:28px 8px; margin:0; font-size:14px; }
+
+.overlay { position:fixed; inset:0; background:rgba(31,26,29,.55); z-index:2000; display:flex; animation:fade .2s; }
+.overlay.center { align-items:center; justify-content:center; padding:16px; z-index:3000; }
+.overlay.right { justify-content:flex-end; }
+@keyframes fade { from { opacity:0; } }
+.modal { background:#fff; border-radius:20px; width:100%; max-width:780px; max-height:92vh; overflow-y:auto; display:grid; grid-template-columns:1fr 1fr; position:relative; }
+.modal-img { width:100%; height:100%; min-height:300px; max-height:460px; object-fit:cover; border-radius:20px 0 0 20px; }
+.modal-info { padding:28px 24px; display:flex; flex-direction:column; }
+.modal-info h2 { margin:0; font-size:24px; line-height:1.25; }
+.modal-desc { color:#4b4248; font-size:14px; margin:0 0 14px; }
+.modal-close { position:absolute; top:12px; right:12px; width:34px; height:34px; border-radius:50%; border:0; background:rgba(255,255,255,.95); display:flex; align-items:center; justify-content:center; z-index:2; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+.perks { list-style:none; padding:12px; margin:0 0 16px; background:var(--rose-50); border-radius:12px; display:flex; flex-direction:column; gap:8px; font-size:13px; color:#4b4248; }
+.perks li { display:flex; align-items:center; gap:8px; } .perks svg { color:var(--rose-600); flex-shrink:0; }
+.qty-row { display:flex; align-items:center; gap:12px; margin-bottom:14px; font-weight:600; font-size:14px; }
+.qty { display:flex; align-items:center; border:1px solid #e2dbe0; border-radius:10px; }
+.qty button { border:0; background:none; padding:8px 11px; display:flex; }
+.qty span { min-width:26px; text-align:center; font-weight:700; font-size:14px; }
+.qty-sm button { padding:5px 7px; } .qty-sm span { font-size:13px; }
+
+.drawer { width:420px; max-width:100vw; height:100%; background:#fff; display:flex; flex-direction:column; animation:slide .25s ease-out; }
+@keyframes slide { from { transform:translateX(100%); } }
+.drawer-head { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid var(--line); }
+.drawer-head h3 { margin:0; font-size:16px; display:flex; align-items:center; gap:8px; }
+.drawer-body { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:12px; }
+.drawer-foot { border-top:1px solid var(--line); padding:16px 20px; }
+.cart-item { display:flex; align-items:center; gap:10px; padding-bottom:12px; border-bottom:1px solid #f7f0f3; }
+.cart-item h4, .stock-item h4 { margin:0 0 2px; font-size:13.5px; line-height:1.3; }
+.stock-img { width:54px; height:54px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+.total { display:flex; justify-content:space-between; align-items:center; font-weight:600; margin-bottom:12px; }
+.total strong { color:var(--rose-600); font-size:18px; }
+.success { margin:auto; text-align:center; padding:24px; display:flex; flex-direction:column; align-items:center; gap:10px; color:#16a34a; }
+.success h3 { color:var(--ink); margin:4px 0 0; font-size:20px; } .success p { margin:0 0 10px; }
+
+.form { display:flex; flex-direction:column; gap:14px; }
+.form label { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:600; color:#4b4248; }
+.bloom input[type=text], .bloom input[type=tel], .bloom input[type=password], .bloom input[type=number], .bloom input[type=url], .bloom textarea, .bloom select { width:100%; padding:11px 13px; border:1px solid #e2dbe0; border-radius:10px; background:#fff; color:var(--ink); outline:none; }
+.bloom textarea { min-height:78px; resize:vertical; }
+.bloom input:focus, .bloom textarea:focus, .bloom select:focus { border-color:var(--rose-600); box-shadow:0 0 0 3px rgba(219,39,119,.15); }
+.preview { width:100%; max-height:160px; object-fit:cover; border-radius:12px; }
+
+.card-narrow { max-width:600px; margin:40px auto; padding:28px 24px; background:#fff; border-radius:20px; border:1px solid var(--line); width:calc(100% - 32px); }
+.card-narrow h2 { margin:0 0 6px; font-size:24px; }
+.card-narrow.login { max-width:400px; text-align:center; margin-top:64px; }
+.login-icon { color:var(--rose-600); }
+.track-form { display:flex; gap:8px; margin:16px 0; }
+.track-list { display:flex; flex-direction:column; gap:12px; }
+.track-item { border:1px solid var(--line); border-radius:12px; padding:14px; background:#fdfafb; display:flex; flex-direction:column; gap:4px; }
+.track-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.badge { padding:4px 12px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid; }
+.badge-pending { background:#fef3c7; color:#b45309; border-color:#fde68a; } .badge-confirmed { background:#dcfce7; color:#15803d; border-color:#bbf7d0; }
+.badge-completed { background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe; } .badge-canceled { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+
+.admin-hero { background:linear-gradient(160deg,#fde4ef,#fbcfe8); border-radius:20px; padding:24px 28px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+.admin-hero h1 { margin:0 0 4px; font-size:26px; color:var(--rose-900); display:flex; align-items:center; gap:10px; }
+.admin-hero p { margin:0; color:#9d174d; font-size:14px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:26px; }
+.stat { background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; display:flex; gap:14px; align-items:center; }
+.stat small { color:var(--muted); font-size:12px; display:block; } .stat strong { font-size:20px; display:block; }
+.stat-icon { padding:13px; border-radius:14px; display:flex; }
+.s-pink { background:var(--rose-100); color:var(--rose-600); } .s-blue { background:#e0f2fe; color:#0284c7; } .s-green { background:#dcfce7; color:#16a34a; } .s-amber { background:#fef3c7; color:#d97706; }
+.panel { background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; }
+.panel-title { margin:0 0 14px; font-size:17px; display:flex; align-items:center; gap:8px; }
+.panel-title svg { color:var(--rose-600); }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; text-align:left; min-width:820px; }
+th { background:#faf6f8; color:var(--muted); font-weight:600; padding:12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+td { padding:12px; border-bottom:1px solid #f7f0f3; vertical-align:middle; }
+tbody tr:hover { background:#fff8fa; }
+.t-id { font-weight:700; color:var(--rose-700); } .t-money { font-weight:700; color:var(--rose-600); white-space:nowrap; } .t-wrap { max-width:200px; }
+td select { width:auto; padding:7px 10px; font-weight:600; }
+.admin-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:22px; align-items:start; }
+.stock-list { display:flex; flex-direction:column; gap:10px; max-height:520px; overflow-y:auto; }
+.stock-item { display:flex; gap:12px; align-items:center; background:#fdfafb; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+
+.fab { position:fixed; bottom:20px; right:20px; width:58px; height:58px; border-radius:50%; border:0; background:var(--rose-600); color:#fff; display:flex; align-items:center; justify-content:center; z-index:1001; box-shadow:0 8px 20px rgba(219,39,119,.4); }
+.fab-pulse { animation:pulse 2.4s infinite; }
+@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(219,39,119,.5); } 70% { box-shadow:0 0 0 14px rgba(219,39,119,0); } 100% { box-shadow:0 0 0 0 rgba(219,39,119,0); } }
+.chat { position:fixed; bottom:90px; right:20px; width:370px; height:520px; max-width:calc(100vw - 32px); max-height:calc(100vh - 110px); background:#fff; border-radius:18px; box-shadow:0 16px 44px rgba(31,26,29,.22); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--line); z-index:1000; animation:fade .2s; }
+.chat-head { background:var(--rose-600); color:#fff; padding:14px 16px; font-weight:600; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+.chat-head span { display:flex; align-items:center; gap:8px; }
+.chat-body { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; background:#fffafc; }
+.msg { max-width:86%; padding:10px 14px; border-radius:16px; font-size:13.5px; line-height:1.5; word-wrap:break-word; }
+.msg-bot { align-self:flex-start; background:#fff; border:1px solid var(--line); border-bottom-left-radius:4px; }
+.msg-user { align-self:flex-end; background:var(--rose-600); color:#fff; border-bottom-right-radius:4px; }
+.msg p { margin:0 0 6px; } .msg p:last-child { margin:0; } .msg ul, .msg ol { margin:4px 0; padding-left:20px; }
+.suggest { display:flex; flex-wrap:wrap; gap:8px; }
+.suggest button { border:1px solid var(--rose-200); background:#fff; color:var(--rose-700); padding:7px 12px; border-radius:999px; font-size:12.5px; font-weight:500; }
+.suggest button:hover { background:var(--rose-100); }
+.typing { display:flex; gap:4px; padding:12px 14px; }
+.typing i { width:7px; height:7px; background:#cdb7c3; border-radius:50%; animation:bounce 1.2s infinite; }
+.typing i:nth-child(2) { animation-delay:.15s; } .typing i:nth-child(3) { animation-delay:.3s; }
+@keyframes bounce { 0%,60%,100% { transform:translateY(0); } 30% { transform:translateY(-5px); } }
+.chat-input { display:flex; gap:8px; padding:10px; border-top:1px solid var(--line); background:#fff; }
+.chat-input input { flex:1; border:1px solid #e2dbe0; border-radius:999px; padding:10px 14px; outline:none; min-width:0; }
+.chat-input input:focus { border-color:var(--rose-600); }
+.send { border:0; background:var(--rose-600); color:#fff; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.send:disabled { background:#e5c7d6; cursor:not-allowed; }
+
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:12px 20px; border-radius:12px; font-size:13.5px; z-index:4000; max-width:calc(100vw - 32px); animation:fade .2s; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+.toast-err { background:#b91c1c; }
+.footer { background:#fff; border-top:1px solid var(--line); padding:24px 16px; text-align:center; color:var(--muted); font-size:13px; }
+
+@media (max-width:768px) {
+  .container { padding:0 14px; }
+  .header-inner { flex-wrap:wrap; }
+  .search-box { order:3; max-width:100%; flex-basis:100%; }
+  .hero { padding:40px 0; }
+  .modal { grid-template-columns:1fr; }
+  .modal-img { border-radius:20px 20px 0 0; min-height:220px; max-height:300px; }
+  .product-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+  .product-body { padding:10px 12px 12px; } .product-body h3 { font-size:14px; }
+  .card-actions { flex-direction:column; }
+  .skeleton { height:300px; }
+}
+@media (max-width:480px) {
+  .hide-sm { display:none; }
+  .topbar { font-size:11px; }
+  .chat { right:12px; bottom:84px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .bloom *, .bloom *::before, .bloom *::after { animation:none !important; transition:none !important; }
+}
+`;
