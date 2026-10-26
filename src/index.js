@@ -121,56 +121,62 @@ export default {
       }
     }
 
-    // 9. API Chatbot AI chuẩn JavaScript
+           // 9. API Chatbot AI qua Cloudflare Workers AI (không cần API key)
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
         const body = await request.json();
-        const userMessage = body.message || "";
+        const userMessage = (body.message || "").slice(0, 500);
 
-        // Lấy danh sách hoa trong DB D1
-        const { results: products } = await env.DB.prepare("SELECT name, price, description FROM products").all();
-        const productListText = products.map(p => `- ${p.name}: ${Number(p.price).toLocaleString('vi-VN')} đ (${p.description})`).join("\n");
+        const { results: products } = await env.DB.prepare(
+          "SELECT name, price, description FROM products"
+        ).all();
+        const productListText = products
+          .map(p => `- ${p.name}: ${Number(p.price).toLocaleString('vi-VN')} đ (${p.description})`)
+          .join("\n");
 
-        const systemPrompt = `Bạn là trợ lý tư vấn hoa tươi thân thiện của shop BloomArt. Các mẫu hoa hiện có:\n${productListText}\nHãy trả lời ngắn gọn, lịch sự, tư vấn mẫu hoa phù hợp cho khách.`;
+        const systemPrompt = `Bạn là trợ lý tư vấn hoa tươi thân thiện của shop BloomArt. Luôn trả lời bằng tiếng Việt. Các mẫu hoa hiện có:\n${productListText}\nHãy trả lời ngắn gọn, tự nhiên, lịch sự, chỉ tư vấn các mẫu hoa có trong danh sách trên và luôn kết thúc bằng một câu hỏi gợi mở.`;
 
-        const GEMINI_API_KEY = env.GEMINI_API_KEY;
-
-        if (!GEMINI_API_KEY) {
-          return Response.json({ reply: "⚠️ Lỗi: Biến GEMINI_API_KEY trên Cloudflare chưa được cấu hình!" }, { headers: corsHeaders });
+        if (!env.AI) {
+          return Response.json(
+            { reply: "⚠️ Chưa cấu hình binding AI (Workers AI) cho Worker!" },
+            { headers: corsHeaders }
+          );
         }
 
-        // Gọi API chuẩn bằng fetch JavaScript với URL thuần túy
-        const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            contents: [
-              { 
-                role: "user", 
-                parts: [{ text: `${systemPrompt}\n\nKhách hàng nhắn: "${userMessage}"` }] 
-              }
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 2000,
-            }
-          })
-        });
+        const MODELS = [
+          "@cf/aisingapore/gemma-sea-lion-v4-27b-it",
+          "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+          "@cf/google/gemma-4-26b-a4b-it",
+          "@cf/meta/llama-3.2-3b-instruct"
+        ];
 
-        const responseData = await apiRes.json();
+        let replyText = null;
+        let lastError = "";
 
-        if (responseData.error) {
-          return Response.json({ reply: `⚠️ Lỗi từ Google API: ${responseData.error.message}` }, { headers: corsHeaders });
+        for (const model of MODELS) {
+          try {
+            const aiRes = await env.AI.run(model, {
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage }
+              ],
+              max_tokens: 500
+            });
+            // Mỗi model có thể trả về định dạng khác nhau, nên đọc cả hai kiểu
+            replyText = aiRes?.response ?? aiRes?.choices?.[0]?.message?.content;
+            if (replyText) break;
+          } catch (e) {
+            lastError = `${model}: ${e.message}`;
+          }
         }
 
-        if (responseData.candidates && responseData.candidates[0]?.content?.parts[0]?.text) {
-          const replyText = responseData.candidates[0].content.parts[0].text;
+        if (replyText) {
           return Response.json({ reply: replyText }, { headers: corsHeaders });
         }
-
-        return Response.json({ reply: `⚠️ Phản hồi từ Google không đúng cấu trúc.` }, { headers: corsHeaders });
+        return Response.json(
+          { reply: `⚠️ Tất cả model AI đều lỗi. Chi tiết: ${lastError}` },
+          { headers: corsHeaders }
+        );
 
       } catch (error) {
         return Response.json({ reply: `⚠️ Lỗi hệ thống: ${error.message}` }, { headers: corsHeaders });
