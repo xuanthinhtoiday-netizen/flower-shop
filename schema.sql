@@ -28,3 +28,14 @@ CREATE TABLE IF NOT EXISTS orders (
   status TEXT DEFAULT 'pending',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS videos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  caption TEXT,
+  youtube_id TEXT,
+  video_url TEXT,
+  poster_url TEXT,
+  ratio TEXT DEFAULT '16 / 9',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

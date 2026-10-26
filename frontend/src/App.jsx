@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import {
   ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus,
   CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode,
-  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, Play
+  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, Play, Film
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -39,6 +39,17 @@ const STATUS = {
 
 const CHAT_SUGGESTIONS = ['Hoa sinh nhật mẹ', 'Hoa tặng người yêu', 'Hoa dưới 500k', 'Hoa chúc mừng khai trương'];
 
+// Nhận link YouTube (watch, youtu.be, shorts, embed) hoặc link file .mp4/.webm (https)
+function parseVideoUrl(raw) {
+  const input = (raw || '').trim();
+  if (!input) return null;
+  const yt = input.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
+  if (yt) return { youtube_id: yt[1], ratio: /\/shorts\//.test(input) ? '9 / 16' : '16 / 9' };
+  if (/^[\w-]{11}$/.test(input)) return { youtube_id: input, ratio: '16 / 9' };
+  if (/^https:\/\/\S+\.(mp4|webm)(\?\S*)?$/i.test(input)) return { video_url: input, ratio: '16 / 9' };
+  return null;
+}
+
 function Img({ src, alt, className }) {
   return (
     <img
@@ -55,16 +66,6 @@ function StatusBadge({ status }) {
   const s = STATUS[status] || STATUS.PENDING;
   return <span className={`badge badge-${s.cls}`}>{s.label}</span>;
 }
-
-/* ---------- Video ---------- */
-// Thêm video của shop vào đây. Danh sách trống thì khu video sẽ tự ẩn.
-//  - YouTube: dán mã video (phần sau "v=" trong link). Video đứng/Shorts thêm: ratio: '9 / 16'
-//  - File mp4: bỏ file vào thư mục public/videos rồi khai báo src (poster là ảnh bìa, không bắt buộc)
-const VIDEOS = [
-  // { title: 'Cắm bó hoa hồng pastel', caption: 'Quy trình làm hoa tại xưởng BloomArt', youtube: 'MA_VIDEO_YOUTUBE' },
-  // { title: 'Hoa hướng dương rực rỡ', caption: 'Giao tận tay người nhận', src: '/videos/huong-duong.mp4', poster: '/videos/huong-duong.jpg' },
-  // { title: 'Hoa tulip mùa xuân', caption: 'Video dọc', youtube: 'MA_VIDEO_YOUTUBE', ratio: '9 / 16' },
-].filter((v) => v.youtube || v.src);
 
 function VideoCard({ v }) {
   const [playing, setPlaying] = useState(false);
@@ -104,6 +105,7 @@ export default function App() {
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
   const [products, setProducts] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [loadError, setLoadError] = useState(false);
   const [cart, setCart] = useState(() => {
     try { return JSON.parse(store.get('bloom_cart', '[]')) || []; } catch { return []; }
@@ -136,6 +138,13 @@ export default function App() {
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductImage, setNewProductImage] = useState('');
 
+  const [newVideoUrl, setNewVideoUrl] = useState('');
+  const [newVideoTitle, setNewVideoTitle] = useState('');
+  const [newVideoCaption, setNewVideoCaption] = useState('');
+  const [newVideoRatio, setNewVideoRatio] = useState('16 / 9');
+  const [newVideoPoster, setNewVideoPoster] = useState('');
+  const parsedVideo = useMemo(() => parseVideoUrl(newVideoUrl), [newVideoUrl]);
+
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -162,7 +171,14 @@ export default function App() {
       .catch(() => { setLoadError(true); setLoading(false); });
   }, []);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  const fetchVideos = useCallback(() => {
+    fetch(`${API_URL}/api/videos`, { cache: 'no-store' })
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((data) => setVideos(Array.isArray(data) ? data : []))
+      .catch(() => { /* không có video thì ẩn khu video */ });
+  }, []);
+
+  useEffect(() => { fetchProducts(); fetchVideos(); }, [fetchProducts, fetchVideos]);
 
   // Lưu giỏ hàng để không mất khi tải lại trang
   useEffect(() => { store.set('bloom_cart', JSON.stringify(cart)); }, [cart]);
@@ -193,6 +209,14 @@ export default function App() {
       return matchSearch && matchCat;
     });
   }, [searchTerm, selectedCategory, products]);
+
+  const videoItems = useMemo(
+    () => videos.map((v) => ({
+      id: v.id, title: v.title, caption: v.caption,
+      youtube: v.youtube_id, src: v.video_url, poster: v.poster_url, ratio: v.ratio,
+    })),
+    [videos]
+  );
 
   /* ----- Admin ----- */
   const handleAdminLogout = useCallback(() => {
@@ -296,6 +320,46 @@ export default function App() {
     try {
       const res = await adminFetch(`/api/products/${id}`, { method: 'DELETE' });
       if (res.ok) { fetchProducts(); showToast('Đã xóa sản phẩm.'); }
+    } catch { /* đã xử lý */ }
+  };
+
+  const handleVideoUrlChange = (value) => {
+    setNewVideoUrl(value);
+    const p = parseVideoUrl(value);
+    if (p) setNewVideoRatio(p.ratio);
+  };
+
+  const handleAddVideo = async (e) => {
+    e.preventDefault();
+    if (!parsedVideo) return showToast('Link chưa hợp lệ. Hãy dùng link YouTube hoặc link file .mp4 (https).', 'err');
+    try {
+      const res = await adminFetch('/api/videos', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: newVideoTitle.trim(),
+          caption: newVideoCaption.trim(),
+          youtube_id: parsedVideo.youtube_id || null,
+          video_url: parsedVideo.video_url || null,
+          poster_url: parsedVideo.video_url ? newVideoPoster.trim() || null : null,
+          ratio: newVideoRatio,
+        }),
+      });
+      if (res.ok) {
+        showToast('Đã đăng video lên trang chủ.');
+        setNewVideoUrl(''); setNewVideoTitle(''); setNewVideoCaption(''); setNewVideoPoster(''); setNewVideoRatio('16 / 9');
+        fetchVideos();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Không thêm được video.', 'err');
+      }
+    } catch { /* đã xử lý */ }
+  };
+
+  const handleDeleteVideo = async (id) => {
+    if (!window.confirm('Xóa video này khỏi trang chủ?')) return;
+    try {
+      const res = await adminFetch(`/api/videos/${id}`, { method: 'DELETE' });
+      if (res.ok) { fetchVideos(); showToast('Đã xóa video.'); }
     } catch { /* đã xử lý */ }
   };
 
@@ -520,7 +584,7 @@ export default function App() {
             )}
           </main>
 
-          {VIDEOS.length > 0 && (
+          {videoItems.length > 0 && (
             <section className="video-section" id="video-hoa">
               <div className="container">
                 <div className="section-head video-head">
@@ -530,7 +594,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="video-grid">
-                  {VIDEOS.map((v, i) => <VideoCard key={v.youtube || v.src || i} v={v} />)}
+                  {videoItems.map((v) => <VideoCard key={v.id} v={v} />)}
                 </div>
               </div>
             </section>
@@ -544,9 +608,9 @@ export default function App() {
           <div className="admin-hero">
             <div>
               <h1><LayoutDashboard size={26} /> Bảng điều khiển quản trị</h1>
-              <p>Theo dõi doanh thu, đơn hàng và kho hoa của BloomArt.</p>
+              <p>Theo dõi doanh thu, đơn hàng, kho hoa và video của BloomArt.</p>
             </div>
-            <button className="btn btn-light" onClick={fetchAdminOrders}><RefreshCw size={16} /> Tải lại dữ liệu</button>
+            <button className="btn btn-light" onClick={() => { fetchAdminOrders(); fetchVideos(); fetchProducts(); }}><RefreshCw size={16} /> Tải lại dữ liệu</button>
           </div>
 
           <div className="stats">
@@ -559,6 +623,7 @@ export default function App() {
           <div className="tabs">
             <button className={`chip ${adminTab === 'orders' ? 'chip-active' : ''}`} onClick={() => setAdminTab('orders')}><ListOrdered size={16} /> Đơn hàng ({ordersList.length})</button>
             <button className={`chip ${adminTab === 'products' ? 'chip-active' : ''}`} onClick={() => setAdminTab('products')}><PackagePlus size={16} /> Kho hoa ({products.length})</button>
+            <button className={`chip ${adminTab === 'videos' ? 'chip-active' : ''}`} onClick={() => setAdminTab('videos')}><Film size={16} /> Video ({videos.length})</button>
           </div>
 
           {adminTab === 'orders' && (
@@ -619,6 +684,67 @@ export default function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {adminTab === 'videos' && (
+            <div className="admin-grid">
+              <div className="panel">
+                <h3 className="panel-title"><Film size={20} /> Thêm video mới</h3>
+                <form onSubmit={handleAddVideo} className="form">
+                  <label>Link video
+                    <input type="text" required value={newVideoUrl} onChange={(e) => handleVideoUrlChange(e.target.value)} placeholder="Link YouTube hoặc link file .mp4" />
+                  </label>
+                  {newVideoUrl && !parsedVideo && (
+                    <p className="hint-err">Link chưa hợp lệ. Hãy dùng link YouTube (youtube.com, youtu.be, shorts) hoặc link file .mp4 bắt đầu bằng https://</p>
+                  )}
+                  {parsedVideo?.youtube_id && (
+                    <Img className="preview" src={`https://img.youtube.com/vi/${parsedVideo.youtube_id}/hqdefault.jpg`} alt="Xem trước video" />
+                  )}
+                  <label>Tiêu đề
+                    <input type="text" required maxLength={120} value={newVideoTitle} onChange={(e) => setNewVideoTitle(e.target.value)} placeholder="Ví dụ: Cắm bó hoa hồng pastel" />
+                  </label>
+                  <label>Mô tả ngắn (không bắt buộc)
+                    <input type="text" maxLength={200} value={newVideoCaption} onChange={(e) => setNewVideoCaption(e.target.value)} placeholder="Ví dụ: Quy trình làm hoa tại xưởng" />
+                  </label>
+                  <label>Kiểu khung hình
+                    <select value={newVideoRatio} onChange={(e) => setNewVideoRatio(e.target.value)}>
+                      <option value="16 / 9">Ngang (16:9)</option>
+                      <option value="9 / 16">Dọc (9:16, kiểu Shorts/TikTok)</option>
+                    </select>
+                  </label>
+                  {parsedVideo?.video_url && (
+                    <label>Link ảnh bìa (không bắt buộc)
+                      <input type="url" value={newVideoPoster} onChange={(e) => setNewVideoPoster(e.target.value)} placeholder="https://..." />
+                    </label>
+                  )}
+                  <button type="submit" className="btn btn-primary" disabled={!parsedVideo}><Plus size={16} /> Đăng video lên trang chủ</button>
+                </form>
+              </div>
+
+              <div className="panel">
+                <h3 className="panel-title"><Film size={20} /> Video đang hiển thị</h3>
+                {videoItems.length === 0 ? (
+                  <p className="empty-text">Chưa có video nào. Khu video trên trang chủ đang được ẩn.</p>
+                ) : (
+                  <div className="stock-list">
+                    {videoItems.map((v) => (
+                      <div key={v.id} className="stock-item">
+                        <Img
+                          className="stock-img"
+                          src={v.poster || (v.youtube ? `https://img.youtube.com/vi/${v.youtube}/hqdefault.jpg` : '')}
+                          alt={v.title}
+                        />
+                        <div className="grow">
+                          <h4>{v.title}</h4>
+                          <span className="muted">{v.youtube ? 'YouTube' : 'File video'} · {v.ratio === '9 / 16' ? 'Dọc' : 'Ngang'}</span>
+                        </div>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteVideo(v.id)}><Trash2 size={14} /> Xóa</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -825,6 +951,7 @@ html, body, #root { margin:0; padding:0; width:100%; max-width:100%; overflow-x:
 .section { padding-top:24px; padding-bottom:64px; }
 .muted { color:var(--muted); font-size:13px; }
 .grow { flex:1; min-width:0; }
+.hint-err { margin:0; color:#b91c1c; font-size:12.5px; }
 
 .topbar { background:var(--rose-700); color:#fff; font-size:12px; padding:8px 16px; display:flex; gap:8px; justify-content:center; align-items:center; }
 .header { background:#fff; position:sticky; top:0; z-index:100; border-bottom:1px solid var(--line); }
