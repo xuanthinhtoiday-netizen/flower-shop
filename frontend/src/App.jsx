@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import {
   ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus,
   CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode,
-  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw
+  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, Play
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -54,6 +54,47 @@ function Img({ src, alt, className }) {
 function StatusBadge({ status }) {
   const s = STATUS[status] || STATUS.PENDING;
   return <span className={`badge badge-${s.cls}`}>{s.label}</span>;
+}
+
+/* ---------- Video ---------- */
+// Thêm video của shop vào đây. Danh sách trống thì khu video sẽ tự ẩn.
+//  - YouTube: dán mã video (phần sau "v=" trong link). Video đứng/Shorts thêm: ratio: '9 / 16'
+//  - File mp4: bỏ file vào thư mục public/videos rồi khai báo src (poster là ảnh bìa, không bắt buộc)
+const VIDEOS = [
+  // { title: 'Cắm bó hoa hồng pastel', caption: 'Quy trình làm hoa tại xưởng BloomArt', youtube: 'MA_VIDEO_YOUTUBE' },
+  // { title: 'Hoa hướng dương rực rỡ', caption: 'Giao tận tay người nhận', src: '/videos/huong-duong.mp4', poster: '/videos/huong-duong.jpg' },
+  // { title: 'Hoa tulip mùa xuân', caption: 'Video dọc', youtube: 'MA_VIDEO_YOUTUBE', ratio: '9 / 16' },
+].filter((v) => v.youtube || v.src);
+
+function VideoCard({ v }) {
+  const [playing, setPlaying] = useState(false);
+  const ratio = v.ratio || '16 / 9';
+  const thumb = v.poster || (v.youtube ? `https://img.youtube.com/vi/${v.youtube}/hqdefault.jpg` : undefined);
+  return (
+    <figure className="video-card">
+      <div className="video-frame" style={{ aspectRatio: ratio }}>
+        {v.src ? (
+          <video src={v.src} poster={thumb} controls playsInline preload="metadata" />
+        ) : playing ? (
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${v.youtube}?autoplay=1&rel=0`}
+            title={v.title}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+          />
+        ) : (
+          <button className="video-play" onClick={() => setPlaying(true)} aria-label={`Phát video ${v.title}`}>
+            {thumb && <img src={thumb} alt="" loading="lazy" />}
+            <span className="play-icon"><Play size={26} /></span>
+          </button>
+        )}
+      </div>
+      <figcaption>
+        <strong>{v.title}</strong>
+        {v.caption && <span>{v.caption}</span>}
+      </figcaption>
+    </figure>
+  );
 }
 
 /* ---------- App ---------- */
@@ -275,13 +316,13 @@ export default function App() {
     }
   };
 
-  const addToCart = useCallback((product, qty = 1) => {
+  const addToCart = useCallback((product, qty = 1, silent = false) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
       if (existing) return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + qty } : i));
       return [...prev, { ...product, quantity: qty }];
     });
-    showToast(`Đã thêm "${product.name}" vào giỏ.`);
+    if (!silent) showToast(`Đã thêm "${product.name}" vào giỏ.`);
   }, [showToast]);
 
   const updateQuantity = useCallback((id, delta) => {
@@ -350,6 +391,15 @@ export default function App() {
   };
 
   const openProduct = (item) => { setSelectedProduct(item); setModalQuantity(1); };
+
+  // Mua ngay: thêm vào giỏ rồi mở thẳng bước nhập thông tin giao hoa
+  const buyNow = (product, qty = 1) => {
+    addToCart(product, qty, true);
+    setSelectedProduct(null);
+    setCheckoutStep('form');
+    setIsCartOpen(true);
+  };
+
   const view = currentView === 'admin_dashboard' && !adminToken ? 'admin_login' : currentView;
 
   return (
@@ -460,8 +510,8 @@ export default function App() {
                       <p className="clamp-2">{item.description}</p>
                       <div className="price">{vnd(item.price)}</div>
                       <div className="card-actions">
-                        <button className="btn btn-light btn-sm" onClick={() => openProduct(item)}>Xem</button>
-                        <button className="btn btn-primary btn-sm" onClick={() => addToCart(item)}><Plus size={14} /> Mua</button>
+                        <button className="btn btn-light btn-sm" onClick={() => addToCart(item)} aria-label={`Thêm ${item.name} vào giỏ`}><ShoppingBag size={15} /> Thêm giỏ</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => buyNow(item)}>Mua ngay</button>
                       </div>
                     </div>
                   </article>
@@ -469,6 +519,22 @@ export default function App() {
               </div>
             )}
           </main>
+
+          {VIDEOS.length > 0 && (
+            <section className="video-section" id="video-hoa">
+              <div className="container">
+                <div className="section-head video-head">
+                  <div>
+                    <h2>Hoa nở trong từng khoảnh khắc</h2>
+                    <p className="muted">Xem cách các bó hoa được cắm và trao tận tay người nhận.</p>
+                  </div>
+                </div>
+                <div className="video-grid">
+                  {VIDEOS.map((v, i) => <VideoCard key={v.youtube || v.src || i} v={v} />)}
+                </div>
+              </div>
+            </section>
+          )}
         </>
       )}
 
@@ -622,7 +688,7 @@ export default function App() {
               </div>
               <div className="card-actions">
                 <button className="btn btn-light" onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); }}>Thêm vào giỏ</button>
-                <button className="btn btn-primary" onClick={() => { addToCart(selectedProduct, modalQuantity); setSelectedProduct(null); setIsCartOpen(true); setCheckoutStep('form'); }}>Mua ngay</button>
+                <button className="btn btn-primary" onClick={() => buyNow(selectedProduct, modalQuantity)}>Mua ngay</button>
               </div>
             </div>
           </div>
@@ -675,6 +741,11 @@ export default function App() {
                   <input type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Số điện thoại *" autoComplete="tel" />
                   <textarea required value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Địa chỉ giao hoa *" />
                   <textarea value={cardMessage} onChange={(e) => setCardMessage(e.target.value)} placeholder="Lời chúc trên thiệp (không bắt buộc)" />
+                  <div className="summary">
+                    {cart.map((i) => (
+                      <div key={i.id}><span>{i.name} × {i.quantity}</span><b>{vnd(Number(i.price) * i.quantity)}</b></div>
+                    ))}
+                  </div>
                   <div className="total"><span>Tổng thanh toán</span><strong>{vnd(cartTotal)}</strong></div>
                   <button type="submit" className="btn btn-primary btn-block" disabled={isSubmitting}>{isSubmitting ? 'Đang gửi...' : 'Xác nhận đặt hàng'}</button>
                 </form>
@@ -924,6 +995,27 @@ td select { width:auto; padding:7px 10px; font-weight:600; }
 .send { border:0; background:var(--rose-600); color:#fff; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .send:disabled { background:#e5c7d6; cursor:not-allowed; }
 
+.summary { display:flex; flex-direction:column; gap:6px; padding:12px; background:var(--rose-50); border-radius:12px; font-size:13px; }
+.summary div { display:flex; justify-content:space-between; gap:12px; }
+.summary span { color:#4b4248; } .summary b { color:var(--rose-600); white-space:nowrap; }
+
+.video-section { background:linear-gradient(180deg,var(--rose-50) 0%,#fde4ef 100%); padding:56px 0 72px; }
+.video-head { margin-bottom:24px; align-items:flex-end; }
+.video-head h2 { font-size:28px; }
+.video-head p { margin:6px 0 0; }
+.video-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:24px; align-items:start; }
+.video-card { margin:0; background:#fff; border-radius:18px; overflow:hidden; border:1px solid var(--line); }
+.video-frame { width:100%; background:#2a1620; position:relative; }
+.video-frame video, .video-frame iframe { width:100%; height:100%; border:0; display:block; background:#000; }
+.video-play { position:absolute; inset:0; width:100%; height:100%; border:0; padding:0; background:linear-gradient(135deg,#f9a8d4,#be185d); overflow:hidden; }
+.video-play img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s; }
+.video-play:hover img { transform:scale(1.04); }
+.play-icon { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,.95); color:var(--rose-600); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+.play-icon svg { margin-left:3px; }
+.video-card figcaption { padding:14px 16px 16px; display:flex; flex-direction:column; gap:2px; }
+.video-card figcaption strong { font-size:15px; }
+.video-card figcaption span { color:var(--muted); font-size:13px; }
+
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:12px 20px; border-radius:12px; font-size:13.5px; z-index:4000; max-width:calc(100vw - 32px); animation:fade .2s; box-shadow:0 8px 24px rgba(0,0,0,.25); }
 .toast-err { background:#b91c1c; }
 .footer { background:#fff; border-top:1px solid var(--line); padding:24px 16px; color:var(--muted); font-size:13px; }
@@ -939,6 +1031,8 @@ td select { width:auto; padding:7px 10px; font-weight:600; }
   .product-body { padding:10px 12px 12px; } .product-body h3 { font-size:14px; }
   .card-actions { flex-direction:column; }
   .skeleton { height:300px; }
+  .video-section { padding:40px 0 56px; }
+  .video-grid { grid-template-columns:1fr; gap:16px; }
 }
 @media (max-width:480px) {
   .hide-sm { display:none; }
