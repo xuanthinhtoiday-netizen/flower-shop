@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import {
   ShoppingBag, Flower2, MessageSquare, Send, X, Search, Trash2, Plus, Minus,
   CheckCircle2, Lock, LayoutDashboard, PackagePlus, ListOrdered, LogOut, SearchCode,
-  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, Play, Film
+  Eye, ShieldCheck, Truck, Sparkles, DollarSign, TrendingUp, ShoppingCart, Package, RefreshCw, Play, Film, RotateCcw
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -15,6 +15,17 @@ const store = {
   get: (k, d = '') => { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* bỏ qua */ } },
   remove: (k) => { try { localStorage.removeItem(k); } catch { /* bỏ qua */ } },
+};
+
+// Hội thoại chatbot lưu theo phiên (đóng tab là hết), tránh hiện lại cuộc trò chuyện cũ với tồn kho đã đổi
+const CHAT_KEY = 'bloom_chat';
+const CHAT_GREETING = { sender: 'bot', text: 'Xin chào! Bạn cần tư vấn chọn hoa cho dịp nào ạ? 🌸' };
+const loadChat = () => {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(CHAT_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch { /* bỏ qua */ }
+  return [CHAT_GREETING];
 };
 
 const FALLBACK_IMG =
@@ -147,9 +158,7 @@ export default function App() {
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState([
-    { sender: 'bot', text: 'Xin chào! Bạn cần tư vấn chọn hoa cho dịp nào ạ? 🌸' },
-  ]);
+  const [chatMessages, setChatMessages] = useState(loadChat);
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
 
@@ -182,6 +191,9 @@ export default function App() {
 
   // Lưu giỏ hàng để không mất khi tải lại trang
   useEffect(() => { store.set('bloom_cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    try { sessionStorage.setItem(CHAT_KEY, JSON.stringify(chatMessages.slice(-30))); } catch { /* bỏ qua */ }
+  }, [chatMessages]);
 
   // Tự cuộn xuống tin nhắn mới nhất
   useEffect(() => {
@@ -436,6 +448,8 @@ export default function App() {
   const sendChat = async (text) => {
     const msg = (text ?? chatInput).trim();
     if (!msg || isTyping) return;
+    // Gửi kèm các tin trước đó để bot hiểu ngữ cảnh ("mẫu đó", "rẻ hơn chút"...)
+    const history = chatMessages.slice(-8).map(({ sender, text }) => ({ sender, text }));
     setChatMessages((prev) => [...prev, { sender: 'user', text: msg }]);
     setChatInput('');
     setIsTyping(true);
@@ -443,15 +457,25 @@ export default function App() {
       const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify({ message: msg, history }),
       });
       const data = await res.json();
-      setChatMessages((prev) => [...prev, { sender: 'bot', text: data.reply || 'Shop đã nhận được tin nhắn của bạn.' }]);
+      setChatMessages((prev) => [...prev, {
+        sender: 'bot',
+        text: data.reply || 'Shop đã nhận được tin nhắn của bạn.',
+        products: Array.isArray(data.products) ? data.products : [],
+      }]);
     } catch {
       setChatMessages((prev) => [...prev, { sender: 'bot', text: 'Mình chưa kết nối được, bạn thử lại sau ít phút nhé.' }]);
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const resetChat = () => {
+    if (isTyping) return;
+    setChatMessages([CHAT_GREETING]);
+    setChatInput('');
   };
 
   const openProduct = (item) => { setSelectedProduct(item); setModalQuantity(1); };
@@ -901,13 +925,42 @@ export default function App() {
         <section className="chat" aria-label="Trợ lý tư vấn hoa">
           <div className="chat-head">
             <span><Sparkles size={16} /> Trợ lý tư vấn hoa</span>
-            <button className="icon-btn light" onClick={() => setIsChatOpen(false)} aria-label="Đóng"><X size={18} /></button>
+            <span className="chat-head-actions">
+              {chatMessages.length > 1 && (
+                <button className="icon-btn light" onClick={resetChat} aria-label="Bắt đầu cuộc trò chuyện mới" title="Cuộc trò chuyện mới"><RotateCcw size={16} /></button>
+              )}
+              <button className="icon-btn light" onClick={() => setIsChatOpen(false)} aria-label="Đóng"><X size={18} /></button>
+            </span>
           </div>
           <div className="chat-body">
             {chatMessages.map((m, i) => (
-              <div key={i} className={`msg msg-${m.sender}`}>
-                {m.sender === 'bot' ? <ReactMarkdown>{m.text}</ReactMarkdown> : m.text}
-              </div>
+              <React.Fragment key={i}>
+                <div className={`msg msg-${m.sender}`}>
+                  {m.sender === 'bot' ? <ReactMarkdown>{m.text}</ReactMarkdown> : m.text}
+                </div>
+                {m.sender === 'bot' && m.products?.length > 0 && (
+                  <div className="chat-cards">
+                    {m.products.map((cp) => {
+                      const p = products.find((x) => x.id === cp.id) || cp; // ưu tiên dữ liệu mới nhất của cửa hàng
+                      return (
+                        <div key={p.id} className="chat-card">
+                          <button className="chat-card-img" onClick={() => openProduct(p)} aria-label={`Xem chi tiết ${p.name}`}>
+                            <Img src={p.image_url} alt={p.name} />
+                          </button>
+                          <div className="chat-card-body">
+                            <strong title={p.name}>{p.name}</strong>
+                            <span className="chat-card-price">{vnd(p.price)}</span>
+                            <div className="chat-card-actions">
+                              <button className="btn btn-light btn-sm" onClick={() => addToCart(p)}><ShoppingBag size={13} /> Thêm giỏ</button>
+                              <button className="btn btn-primary btn-sm" onClick={() => buyNow(p)}>Mua ngay</button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </React.Fragment>
             ))}
             {chatMessages.length === 1 && (
               <div className="suggest">
@@ -1101,6 +1154,16 @@ td select { width:auto; padding:7px 10px; font-weight:600; }
 .chat { position:fixed; bottom:90px; right:20px; width:370px; height:520px; max-width:calc(100vw - 32px); max-height:calc(100vh - 110px); background:#fff; border-radius:18px; box-shadow:0 16px 44px rgba(31,26,29,.22); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--line); z-index:1000; animation:fade .2s; }
 .chat-head { background:var(--rose-600); color:#fff; padding:14px 16px; font-weight:600; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
 .chat-head span { display:flex; align-items:center; gap:8px; }
+.chat-head-actions { gap:2px !important; }
+.chat-cards { align-self:flex-start; display:flex; flex-direction:column; gap:8px; width:92%; }
+.chat-card { display:flex; gap:10px; background:#fff; border:1px solid var(--rose-200); border-radius:14px; padding:8px; }
+.chat-card-img { flex-shrink:0; width:72px; height:72px; padding:0; border:0; border-radius:10px; overflow:hidden; background:var(--rose-100); }
+.chat-card-img img { width:100%; height:100%; object-fit:cover; display:block; }
+.chat-card-body { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.chat-card-body strong { font-size:13px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.chat-card-price { color:var(--rose-600); font-weight:700; font-size:13px; }
+.chat-card-actions { display:flex; gap:6px; margin-top:2px; }
+.chat-card-actions .btn-sm { padding:5px 9px; font-size:12px; border-radius:999px; }
 .chat-body { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; background:#fffafc; }
 .msg { max-width:86%; padding:10px 14px; border-radius:16px; font-size:13.5px; line-height:1.5; word-wrap:break-word; text-align:left; }
 .msg-bot { align-self:flex-start; background:#fff; border:1px solid var(--line); border-bottom-left-radius:4px; max-width:92%; }
